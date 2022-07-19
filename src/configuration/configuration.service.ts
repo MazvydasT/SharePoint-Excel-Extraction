@@ -15,7 +15,15 @@ export class ConfigurationService {
         return Object.freeze(new Command()
             .addOption(envOption)
 
-            .addOption(new Option(`-f, --sharepoint-folder <address>`, `SharePoint folder address`).env(`SHAREPOINT_FOLDER`).makeOptionMandatory(true))
+            .addOption(new Option(`-f, --sharepoint-folder <address>`, `SharePoint folder address`).env(`SHAREPOINT_FOLDER`).makeOptionMandatory(true).argParser(value => {
+                try {
+                    return new URL(value);
+                }
+
+                catch (_) {
+                    throw new InvalidArgumentError(``);
+                }
+            }))
             .addOption(new Option(`-s, --sheet <name>`, `Sheet name to extract`).env(`SHEET`).makeOptionMandatory(true))
             .addOption(new Option(`-h, --header-row <number>`, `Header rownumber`).env(`HEADER_ROW`).default(0).argParser(parseInt))
 
@@ -42,7 +50,7 @@ export class ConfigurationService {
             .showHelpAfterError(true)
 
             .parse().opts<{
-                sharepointFolder: string;
+                sharepointFolder: URL;
                 sheet: string;
                 headerRow: number;
 
