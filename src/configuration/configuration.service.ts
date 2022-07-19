@@ -27,6 +27,9 @@ export class ConfigurationService {
             .addOption(new Option(`-s, --sheet <name>`, `Sheet name to extract`).env(`SHEET`).makeOptionMandatory(true))
             .addOption(new Option(`-h, --header-row <number>`, `Header rownumber`).env(`HEADER_ROW`).default(0).argParser(parseInt))
 
+            .addOption(new Option(`-u, --username <string>`, `SharePoint username`).env(`USERNAME`).makeOptionMandatory(true))
+            .addOption(new Option(`-p, --password <string>`, `SharePoint password`).env(`PASSWORD`).makeOptionMandatory(true))
+
             .addOption(new Option(`-r, --retry <count>`, `Retry errors`).env(`RETRY`).default(5).argParser(parseInt))
             .addOption(new Option(`--retry-delay <ms>`, `Time delay in ms before retrying errors`).env(`RETRY_DELAY`).default(10000).argParser(parseInt))
 
@@ -53,6 +56,9 @@ export class ConfigurationService {
                 sharepointFolder: URL;
                 sheet: string;
                 headerRow: number;
+
+                username: string;
+                password: string;
 
                 retry: number;
                 retryDelay: number;
