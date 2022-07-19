@@ -61,6 +61,8 @@ export class ConfigurationService {
     })();
 
     get getsharepointFolder() { return this.optionValues.sharepointFolder; }
+    get sheet() { return this.optionValues.sheet; }
+    get headerRow() { return this.optionValues.headerRow; }
 
     get retries() { return this.optionValues.retry; }
     get retryDelay() { return this.optionValues.retryDelay; }
