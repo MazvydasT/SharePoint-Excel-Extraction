@@ -117,7 +117,7 @@ export class ConfigurationService {
 
     get persistentErrorCooldown() { return this.optionValues.persistentErrorCooldown; }
 
-    get cronExpression() { return this.optionValues.cron; }
+    get cron() { return this.optionValues.cron; }
 
     get bigQueryKeyFilename() { return this.optionValues.bqkeyfile; }
     get bigQueryProject() { return this.optionValues.bqproject; }

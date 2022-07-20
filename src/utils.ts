@@ -1,3 +1,6 @@
+import { from } from "ix/iterable";
+import { map } from "ix/iterable/operators";
+
 export function parseIntClamp(value: string, radix?: number, min?: number, max?: number) {
     const parsed = parseInt(value, radix);
 
@@ -6,4 +9,10 @@ export function parseIntClamp(value: string, radix?: number, min?: number, max?:
 
 export function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max);
+}
+
+export function getAdditionalProperties(obj: Object) {
+    return from(Object.entries<any>(obj)).pipe(
+        map(([key, value]) => `${key}: ${value}`)
+    );
 }
