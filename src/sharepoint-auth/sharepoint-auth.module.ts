@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { SharepointAuthService } from './sharepoint-auth.service';
+import { SharePointAuthService } from './sharepoint-auth.service';
 
 @Module({
-  providers: [SharepointAuthService],
-  exports: [SharepointAuthService]
+  providers: [SharePointAuthService],
+  exports: [SharePointAuthService]
 })
-export class SharepointAuthModule { }
+export class SharePointAuthModule { }

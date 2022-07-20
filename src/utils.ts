@@ -1,0 +1,9 @@
+export function parseIntClamp(value: string, radix?: number, min?: number, max?: number) {
+    const parsed = parseInt(value, radix);
+
+    return clamp(parsed, min ?? parsed, max ?? parsed);
+}
+
+export function clamp(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+}

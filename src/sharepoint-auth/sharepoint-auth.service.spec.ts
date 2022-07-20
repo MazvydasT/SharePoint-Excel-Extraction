@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { SharepointAuthService } from './sharepoint-auth.service';
+import { SharePointAuthService } from './sharepoint-auth.service';
 
 describe('SharepointAuthService', () => {
-  let service: SharepointAuthService;
+  let service: SharePointAuthService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SharepointAuthService],
+      providers: [SharePointAuthService],
     }).compile();
 
-    service = module.get<SharepointAuthService>(SharepointAuthService);
+    service = module.get<SharePointAuthService>(SharePointAuthService);
   });
 
   it('should be defined', () => {
