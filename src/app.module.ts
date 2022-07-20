@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { ConfigurationModule } from './configuration/configuration.module';
 import { ExcelModule } from './excel/excel.module';
 import { SharePointModule } from './sharepoint/sharepoint.module';
+import { BigQueryModule } from './big-query/big-query.module';
 
 @Module({
   imports: [
@@ -13,7 +14,9 @@ import { SharePointModule } from './sharepoint/sharepoint.module';
 
     CacheModule.register({
       ttl: 0
-    })
+    }),
+
+    BigQueryModule
   ],
   controllers: [AppController],
   providers: [AppService],
