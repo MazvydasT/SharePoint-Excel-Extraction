@@ -1,11 +1,13 @@
 import { CACHE_MANAGER, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Cache } from 'cache-manager';
+import { from } from 'ix/iterable';
 import * as moment from 'moment';
-import { EMPTY, firstValueFrom, mergeMap, switchAll, timer } from 'rxjs';
+import { EMPTY, firstValueFrom, mergeMap, retry, RetryConfig, switchAll, timer } from 'rxjs';
 import { AppModule } from './app.module';
 import { ConfigurationService } from './configuration/configuration.service';
 import { ExcelService } from './excel/excel.service';
+import { OutputService } from './output/output.service';
 import { SharePointService } from './sharepoint/sharepoint.service';
 import { getAdditionalProperties } from './utils';
 
@@ -16,15 +18,23 @@ async function bootstrap() {
   const configurationService = app.get(ConfigurationService);
   const sharePointService = app.get(SharePointService);
   const excelService = app.get(ExcelService);
+  const outputService = app.get(OutputService);
   const cache = app.get<Cache>(CACHE_MANAGER);
 
   const logger = new Logger(`main`);
+
+  const retryConfig: RetryConfig = {
+    count: configurationService.retries,
+    delay: configurationService.retryDelay,
+    resetOnSuccess: true
+  };
 
   while (true) {
     logger.log(`Starting extraction`);
 
     try {
-      const asd = await firstValueFrom(sharePointService.getLastAddedFileDataFromFolder(configurationService.sharePointFolder).pipe(
+      await firstValueFrom(sharePointService.getLastAddedFileDataFromFolder(configurationService.sharePointFolder).pipe(
+        retry(retryConfig),
         mergeMap(async fileData => {
           if (!fileData) {
             logger.warn(`No files found in ${configurationService.sharePointFolder}`);
@@ -41,6 +51,7 @@ async function bootstrap() {
           }
 
           return sharePointService.getFileContent(new URL(fileData.__metadata.id)).pipe(
+            retry(retryConfig),
             mergeMap(excelFile => excelService.getSheetData(excelFile, configurationService.sheet, {
               cellFormula: false,
               cellHTML: false,
@@ -48,7 +59,9 @@ async function bootstrap() {
               cellText: false,
               raw: true
             }, { range: 1 })),
-            
+            retry(retryConfig),
+            mergeMap(dataRows => outputService.outputToBigQuery(from(dataRows))),
+            retry(retryConfig)
           )
         }),
         switchAll()
