@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core';
 import { Cache } from 'cache-manager';
 import { from } from 'ix/iterable';
 import { map as mapIx } from 'ix/iterable/operators';
-import * as moment from 'moment';
+import moment from 'moment';
 import {
 	EMPTY,
 	firstValueFrom,
@@ -12,6 +12,7 @@ import {
 	retry,
 	RetryConfig,
 	switchAll,
+	tap,
 	timer
 } from 'rxjs';
 import { AppModule } from './app.module';
@@ -90,13 +91,14 @@ async function bootstrap() {
 										{ range: 1 }
 									);
 
-									logger.log(
-										`${configurationService.sheet} sheet data extracted`
-									);
-
 									return dataRows;
 								}),
 								retry(retryConfig),
+								tap(() =>
+									logger.log(
+										`${configurationService.sheet} sheet data extracted`
+									)
+								),
 
 								map(dataRows =>
 									from(dataRows).pipe(
@@ -126,13 +128,17 @@ async function bootstrap() {
 								),
 
 								mergeMap(dataRows => {
-									const job = outputService.outputToBigQuery(dataRows);
-
+									return outputService.outputToBigQuery(dataRows);
+								}),
+								retry(retryConfig),
+								tap(() => {
 									logger.log(`Data written to BigQuery`);
 
-									return job;
-								}),
-								retry(retryConfig)
+									cache.set(
+										configurationService.sharePointFolder.href,
+										fileData.ETag
+									);
+								})
 							);
 						}),
 						switchAll()
@@ -147,6 +153,7 @@ async function bootstrap() {
 					.duration(configurationService.persistentErrorCooldown)
 					.humanize()}.`
 			);
+
 			await firstValueFrom(timer(configurationService.persistentErrorCooldown));
 
 			continue;
