@@ -5,15 +5,15 @@ import { OutputModule } from './output/output.module';
 import { SharePointModule } from './sharepoint/sharepoint.module';
 
 @Module({
-  imports: [
-    ConfigurationModule,
-    SharePointModule,
-    ExcelModule,
-    OutputModule,
+	imports: [
+		ConfigurationModule,
+		SharePointModule,
+		ExcelModule,
+		OutputModule,
 
-    CacheModule.register({
-      ttl: 0
-    })
-  ]
+		CacheModule.register({
+			ttl: 0
+		})
+	]
 })
-export class AppModule { }
+export class AppModule {}

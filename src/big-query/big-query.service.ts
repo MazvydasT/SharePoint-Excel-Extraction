@@ -6,27 +6,30 @@ import { ConfigurationService } from '../configuration/configuration.service';
 
 @Injectable()
 export class BigQueryService {
-    constructor(private configurationService: ConfigurationService) { }
+	constructor(private configurationService: ConfigurationService) {}
 
-    private bigQueryTable = new BigQuery({
-        projectId: this.configurationService.bigQueryProject,
-        keyFilename: this.configurationService.bigQueryKeyFilename
-    })
-        .dataset(this.configurationService.bigQueryDataset)
-        .table(this.configurationService.bigQueryTable);
+	private bigQueryTable = new BigQuery({
+		projectId: this.configurationService.bigQueryProject,
+		keyFilename: this.configurationService.bigQueryKeyFilename
+	})
+		.dataset(this.configurationService.bigQueryDataset)
+		.table(this.configurationService.bigQueryTable);
 
-    write(readable: Readable) {
-        return new Observable<Job>(subscriber => {
-            readable.pipe(this.bigQueryTable.createWriteStream({
-                sourceFormat: `NEWLINE_DELIMITED_JSON`,
-                writeDisposition: `WRITE_TRUNCATE`,
-                autodetect: true
-            }))
-                .on(`complete`, job => {
-                    subscriber.next(job);
-                    subscriber.complete();
-                })
-                .on(`error`, err => subscriber.error(err));
-        });
-    }
+	write(readable: Readable) {
+		return new Observable<Job>(subscriber => {
+			readable
+				.pipe(
+					this.bigQueryTable.createWriteStream({
+						sourceFormat: `NEWLINE_DELIMITED_JSON`,
+						writeDisposition: `WRITE_TRUNCATE`,
+						autodetect: true
+					})
+				)
+				.on(`complete`, job => {
+					subscriber.next(job);
+					subscriber.complete();
+				})
+				.on(`error`, err => subscriber.error(err));
+		});
+	}
 }

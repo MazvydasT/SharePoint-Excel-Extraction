@@ -1,7 +1,7 @@
-import { ISharePointFileData } from "./ISharePointFileData";
+import { ISharePointFileData } from './ISharePointFileData';
 
 export interface ISharePointFilesData {
-    d: {
-        results: ISharePointFileData[];
-    };
+	d: {
+		results: ISharePointFileData[];
+	};
 }

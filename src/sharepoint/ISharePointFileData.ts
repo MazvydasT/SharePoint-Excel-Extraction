@@ -1,7 +1,7 @@
 export interface ISharePointFileData {
-    __metadata: {
-        id: string;
-    };
+	__metadata: {
+		id: string;
+	};
 
-    ETag: string;
+	ETag: string;
 }

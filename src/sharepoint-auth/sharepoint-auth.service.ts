@@ -4,10 +4,12 @@ import { from } from 'rxjs';
 
 @Injectable()
 export class SharePointAuthService {
-    getAuth(url: URL, username: string, password: string) {
-        return from(getAuth(url.origin, {
-            username,
-            password
-        }));
-    }
+	getAuth(url: URL, username: string, password: string) {
+		return from(
+			getAuth(url.origin, {
+				username,
+				password
+			})
+		);
+	}
 }

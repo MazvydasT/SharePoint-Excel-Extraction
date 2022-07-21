@@ -4,8 +4,8 @@ import { ConfigurationService } from '../configuration/configuration.service';
 import { HttpConfigurationService } from './http-configuration.service';
 
 @Module({
-  imports: [ConfigurationModule],
-  providers: [ConfigurationService, HttpConfigurationService],
-  exports: [HttpConfigurationService]
+	imports: [ConfigurationModule],
+	providers: [ConfigurationService, HttpConfigurationService],
+	exports: [HttpConfigurationService]
 })
-export class HttpConfigurationModule { }
+export class HttpConfigurationModule {}

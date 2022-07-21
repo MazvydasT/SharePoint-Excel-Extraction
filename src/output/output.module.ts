@@ -3,8 +3,8 @@ import { BigQueryModule } from '../big-query/big-query.module';
 import { OutputService } from './output.service';
 
 @Module({
-  imports: [BigQueryModule],
-  providers: [OutputService],
-  exports: [OutputService]
+	imports: [BigQueryModule],
+	providers: [OutputService],
+	exports: [OutputService]
 })
-export class OutputModule { }
+export class OutputModule {}

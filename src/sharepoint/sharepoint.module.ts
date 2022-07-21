@@ -9,19 +9,15 @@ import { SharePointAuthService } from '../sharepoint-auth/sharepoint-auth.servic
 import { SharePointService } from './sharepoint.service';
 
 @Module({
-  imports: [
-    ConfigurationModule,
-    SharePointAuthModule,
-    HttpModule.registerAsync({
-      imports: [HttpConfigurationModule],
-      useExisting: HttpConfigurationService
-    })
-  ],
-  providers: [
-    SharePointService,
-    SharePointAuthService,
-    ConfigurationService
-  ],
-  exports: [SharePointService]
+	imports: [
+		ConfigurationModule,
+		SharePointAuthModule,
+		HttpModule.registerAsync({
+			imports: [HttpConfigurationModule],
+			useExisting: HttpConfigurationService
+		})
+	],
+	providers: [SharePointService, SharePointAuthService, ConfigurationService],
+	exports: [SharePointService]
 })
-export class SharePointModule { }
+export class SharePointModule {}
