@@ -5,7 +5,7 @@ import { BigQueryService } from './big-query.service';
 
 @Module({
   imports: [ConfigurationModule],
-  providers: [BigQueryService, ConfigurationService],
+  providers: [BigQueryService],
   exports: [BigQueryService]
 })
 export class BigQueryModule { }

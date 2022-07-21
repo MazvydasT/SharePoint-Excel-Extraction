@@ -28,13 +28,15 @@ export class SharePointService {
 
     getRequest<T>(url: URL, config: AxiosRequestConfig<T> = {}) {
         return this.sharePointAuthService.getAuth(url, this.configurationService.username, this.configurationService.password).pipe(
-            mergeMap(authResponse => this.httpService.get<T>(url.href, {
-                ...config,
-                headers: {
-                    ...config.headers,
-                    ...authResponse.headers
-                }
-            }))
+            mergeMap(authResponse => {
+                return this.httpService.get<T>(url.href, {
+                    ...config,
+                    headers: {
+                        ...config.headers,
+                        ...authResponse.headers
+                    }
+                });
+            })
         );
     }
 
@@ -62,7 +64,9 @@ export class SharePointService {
         return this.getRequest<T>(filesRequestURL, {
             headers: { ...ACCEPT_JSON }
         }).pipe(
-            map(response => response.data)
+            map(response => {
+                return response.data;
+            })
         );
     }
 
@@ -70,7 +74,9 @@ export class SharePointService {
         return this.getRequest<Buffer>(fileURL, {
             responseType: 'arraybuffer'
         }).pipe(
-            map(response => response.data)
+            map(response => {
+                return response.data;
+            })
         );
     }
 

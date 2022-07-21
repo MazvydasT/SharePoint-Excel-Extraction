@@ -2,8 +2,9 @@ import { CACHE_MANAGER, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Cache } from 'cache-manager';
 import { from } from 'ix/iterable';
+import { map as mapIx } from 'ix/iterable/operators';
 import * as moment from 'moment';
-import { EMPTY, firstValueFrom, mergeMap, retry, RetryConfig, switchAll, timer } from 'rxjs';
+import { EMPTY, firstValueFrom, map, mergeMap, retry, RetryConfig, switchAll, timer } from 'rxjs';
 import { AppModule } from './app.module';
 import { ConfigurationService } from './configuration/configuration.service';
 import { ExcelService } from './excel/excel.service';
@@ -22,6 +23,10 @@ async function bootstrap() {
   const cache = app.get<Cache>(CACHE_MANAGER);
 
   const logger = new Logger(`main`);
+
+  const nonAlphaNumericRegExp = /[^A-Z0-9]/ig;
+  const nonAlphaNumericStartRegExp = /^[^A-Z0-9]+/ig;
+  const nonAlphaNumericEndRegExp = /[^A-Z0-9]+$/ig;
 
   const retryConfig: RetryConfig = {
     count: configurationService.retries,
@@ -44,23 +49,61 @@ async function bootstrap() {
 
           const cachedETag = await cache.get<string>(configurationService.sharePointFolder.href);
 
+          const fileURL = new URL(`${fileData.__metadata.id}//$value`);
+
           if (cachedETag == fileData.ETag) {
-            logger.log(`No changes in ${fileData.__metadata.id}`);
+            logger.log(`No changes in ${fileURL.href}`);
 
             return EMPTY;
           }
 
-          return sharePointService.getFileContent(new URL(fileData.__metadata.id)).pipe(
+          return sharePointService.getFileContent(fileURL).pipe(
             retry(retryConfig),
-            mergeMap(excelFile => excelService.getSheetData(excelFile, configurationService.sheet, {
-              cellFormula: false,
-              cellHTML: false,
-              cellDates: true,
-              cellText: false,
-              raw: true
-            }, { range: 1 })),
+
+            mergeMap(excelFile => {
+              const dataRows = excelService.getSheetData<any>(excelFile, configurationService.sheet, {
+                cellFormula: false,
+                cellHTML: false,
+                cellDates: true,
+                cellText: false,
+                raw: true
+              }, { range: 1 });
+
+              logger.log(`${configurationService.sheet} sheet data extracted`);
+
+              return dataRows;
+            }),
             retry(retryConfig),
-            mergeMap(dataRows => outputService.outputToBigQuery(from(dataRows))),
+
+            map(dataRows => from(dataRows).pipe(
+              mapIx(dataRow => Object.fromEntries(Object.entries(dataRow).map(([key, value]) => {
+                const newKey = key.replaceAll(nonAlphaNumericRegExp, `_`)
+                  .replaceAll(nonAlphaNumericStartRegExp, ``)
+                  .replaceAll(nonAlphaNumericEndRegExp, ``);
+
+                let newValue = value;
+
+                if (value instanceof Date)
+                  newValue = moment(value)
+                    .add(1, `millisecond`) // Fixes time being displayed 1s less than what is in source Excel file
+                    .format(`YYYY-MM-DD HH:mm:ss`);
+
+                else if (typeof newValue == 'string') {
+                  if (newValue.trim().length == 0) newValue = null;
+                }
+
+
+                return [newKey, newValue];
+              })))
+            )),
+
+            mergeMap(dataRows => {
+              const job = outputService.outputToBigQuery(dataRows);
+
+              logger.log(`Data written to BigQuery`);
+
+              return job;
+            }),
             retry(retryConfig)
           )
         }),
