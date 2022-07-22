@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Command, InvalidArgumentError, Option } from 'commander';
 import { CronExpression, parseExpression } from 'cron-parser';
 import { config } from 'dotenv';
-import { parseIntClamp } from 'src/utils';
+import { parseIntClamp } from '../utils';
 
 @Injectable()
 export class ConfigurationService {
@@ -11,7 +11,7 @@ export class ConfigurationService {
 
 		const envPath = new Command().addOption(envOption).parse().opts<{ env?: string }>().env;
 
-		config({ path: envPath });
+		config({ path: envPath, override: true });
 
 		return Object.freeze(
 			new Command()
@@ -58,7 +58,7 @@ export class ConfigurationService {
 						.makeOptionMandatory(true)
 				)
 
-				.addOption(new Option(`--http-proxy <string>`, `HTTP proxy`).env(`HTTP_PROXY`))
+				.addOption(new Option(`--https-proxy <string>`, `HTTP proxy`).env(`HTTPS_PROXY`))
 
 				.addOption(
 					new Option(`-r, --retry <count>`, `Retry errors`)
@@ -139,7 +139,7 @@ export class ConfigurationService {
 					username: string;
 					password: string;
 
-					httpProxy?: string;
+					httpsProxy?: string;
 
 					retry: number;
 					retryDelay: number;
@@ -173,8 +173,8 @@ export class ConfigurationService {
 		return this.optionValues.password;
 	}
 
-	get httpProxy() {
-		return this.optionValues.httpProxy;
+	get httpsProxy() {
+		return this.optionValues.httpsProxy;
 	}
 
 	get retries() {

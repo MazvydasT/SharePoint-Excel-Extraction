@@ -10,9 +10,9 @@ export class HttpConfigurationService implements HttpModuleOptionsFactory {
 		return {
 			proxy: false,
 			timeout: 10000,
-			...(!!this.configurationService.httpProxy
+			...(!!this.configurationService.httpsProxy
 				? {
-						httpsAgent: new HttpsProxyAgent(this.configurationService.httpProxy)
+						httpsAgent: new HttpsProxyAgent(this.configurationService.httpsProxy)
 				  }
 				: {})
 		};
