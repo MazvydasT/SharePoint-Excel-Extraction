@@ -67,7 +67,7 @@ async function bootstrap() {
 							const fileURL = new URL(`${fileData.__metadata.id}//$value`);
 
 							if (cachedETag == fileData.ETag) {
-								logger.log(`No changes in ${fileURL.href}`);
+								logger.log(`No changes`);
 
 								return EMPTY;
 							}
