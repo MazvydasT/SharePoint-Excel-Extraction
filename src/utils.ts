@@ -1,10 +1,13 @@
 import { from } from 'ix/iterable';
 import { map } from 'ix/iterable/operators';
 
-export function parseIntClamp(value: string, radix?: number, min?: number, max?: number) {
-	const parsed = parseInt(value, radix);
+export function parseIntClamp(
+	value: string,
+	options?: { radix?: number; min?: number; max?: number }
+) {
+	const parsed = parseInt(value, options?.radix);
 
-	return clamp(parsed, min ?? parsed, max ?? parsed);
+	return clamp(parsed, options?.min ?? parsed, options?.max ?? parsed);
 }
 
 export function clamp(value: number, min: number, max: number) {

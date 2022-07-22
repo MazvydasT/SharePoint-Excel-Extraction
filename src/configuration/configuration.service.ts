@@ -40,7 +40,7 @@ export class ConfigurationService {
 						.default(0)
 						.argParser(value => {
 							try {
-								return parseIntClamp(value, undefined, 0);
+								return parseIntClamp(value, { min: 0 });
 							} catch (_) {
 								throw new InvalidArgumentError(``);
 							}
@@ -66,7 +66,7 @@ export class ConfigurationService {
 						.default(5)
 						.argParser(value => {
 							try {
-								return parseIntClamp(value, undefined, 0);
+								return parseIntClamp(value, { min: 0 });
 							} catch (_) {
 								throw new InvalidArgumentError(``);
 							}
@@ -78,7 +78,7 @@ export class ConfigurationService {
 						.default(10000)
 						.argParser(value => {
 							try {
-								return parseIntClamp(value, undefined, 0);
+								return parseIntClamp(value, { min: 0 });
 							} catch (_) {
 								throw new InvalidArgumentError(``);
 							}
