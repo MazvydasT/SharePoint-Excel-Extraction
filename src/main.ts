@@ -133,7 +133,8 @@ async function bootstrap() {
 							);
 						}),
 						switchAll()
-					)
+					),
+				{ defaultValue: null }
 			);
 		} catch (error) {
 			logger.error(error, ...getAdditionalProperties(error), error.stack);
