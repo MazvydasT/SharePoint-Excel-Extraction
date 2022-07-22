@@ -18,8 +18,6 @@ export class OutputService {
 	}
 
 	outputToBigQuery(items: IterableX<any>) {
-		return this.bigQueryService.write(
-			this.itemsArrayToReadable(items[Symbol.iterator]())
-		);
+		return this.bigQueryService.write(this.itemsArrayToReadable(items[Symbol.iterator]()));
 	}
 }

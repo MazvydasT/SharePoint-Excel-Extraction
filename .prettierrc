@@ -3,5 +3,6 @@
 	"trailingComma": "none",
 	"parser": "typescript",
 	"bracketSpacing": true,
-	"arrowParens": "avoid"
+	"arrowParens": "avoid",
+	"printWidth": 100
 }

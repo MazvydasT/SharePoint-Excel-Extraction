@@ -55,9 +55,7 @@ async function bootstrap() {
 						retry(retryConfig),
 						mergeMap(async fileData => {
 							if (!fileData) {
-								logger.warn(
-									`No files found in ${configurationService.sharePointFolder}`
-								);
+								logger.warn(`No files found in ${configurationService.sharePointFolder}`);
 
 								return EMPTY;
 							}
@@ -94,11 +92,7 @@ async function bootstrap() {
 									return dataRows;
 								}),
 								retry(retryConfig),
-								tap(() =>
-									logger.log(
-										`${configurationService.sheet} sheet data extracted`
-									)
-								),
+								tap(() => logger.log(`${configurationService.sheet} sheet data extracted`)),
 
 								map(dataRows =>
 									from(dataRows).pipe(
@@ -134,10 +128,7 @@ async function bootstrap() {
 								tap(() => {
 									logger.log(`Data written to BigQuery`);
 
-									cache.set(
-										configurationService.sharePointFolder.href,
-										fileData.ETag
-									);
+									cache.set(configurationService.sharePointFolder.href, fileData.ETag);
 								})
 							);
 						}),
@@ -168,10 +159,7 @@ async function bootstrap() {
 		cron.reset(now.toDate());
 
 		const nextExtractionStart = moment(cron.next().value.toDate());
-		const msToStartAnotherExtraction = Math.max(
-			nextExtractionStart.diff(now),
-			0
-		);
+		const msToStartAnotherExtraction = Math.max(nextExtractionStart.diff(now), 0);
 
 		logger.log(
 			`Next extraction will start in ${moment

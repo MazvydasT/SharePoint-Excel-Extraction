@@ -7,14 +7,9 @@ import { parseIntClamp } from 'src/utils';
 @Injectable()
 export class ConfigurationService {
 	private readonly optionValues = (() => {
-		const envOption = new Option(`--env <path>`, `Path to .env file`).env(
-			`ENV`
-		);
+		const envOption = new Option(`--env <path>`, `Path to .env file`).env(`ENV`);
 
-		const envPath = new Command()
-			.addOption(envOption)
-			.parse()
-			.opts<{ env?: string }>().env;
+		const envPath = new Command().addOption(envOption).parse().opts<{ env?: string }>().env;
 
 		config({ path: envPath });
 
@@ -23,10 +18,7 @@ export class ConfigurationService {
 				.addOption(envOption)
 
 				.addOption(
-					new Option(
-						`-f, --share-point-folder <address>`,
-						`SharePoint folder address`
-					)
+					new Option(`-f, --share-point-folder <address>`, `SharePoint folder address`)
 						.env(`SHAREPOINT_FOLDER`)
 						.makeOptionMandatory(true)
 						.argParser(value => {
@@ -66,9 +58,7 @@ export class ConfigurationService {
 						.makeOptionMandatory(true)
 				)
 
-				.addOption(
-					new Option(`--http-proxy <string>`, `HTTP proxy`).env(`HTTP_PROXY`)
-				)
+				.addOption(new Option(`--http-proxy <string>`, `HTTP proxy`).env(`HTTP_PROXY`))
 
 				.addOption(
 					new Option(`-r, --retry <count>`, `Retry errors`)
@@ -83,10 +73,7 @@ export class ConfigurationService {
 						})
 				)
 				.addOption(
-					new Option(
-						`--retry-delay <ms>`,
-						`Time delay in ms before retrying errors`
-					)
+					new Option(`--retry-delay <ms>`, `Time delay in ms before retrying errors`)
 						.env(`RETRY_DELAY`)
 						.default(10000)
 						.argParser(value => {
@@ -109,16 +96,11 @@ export class ConfigurationService {
 				)
 
 				.addOption(
-					new Option(
-						`--cron <expression>`,
-						`Cron expression to schedule extraction`
-					)
+					new Option(`--cron <expression>`, `Cron expression to schedule extraction`)
 						.env(`CRON`)
 						.argParser(value => {
 							try {
-								return !value
-									? undefined
-									: parseExpression(value, { iterator: true });
+								return !value ? undefined : parseExpression(value, { iterator: true });
 							} catch (_) {
 								throw new InvalidArgumentError(``);
 							}

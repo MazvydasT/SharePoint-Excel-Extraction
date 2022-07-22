@@ -28,11 +28,7 @@ export class SharePointService {
 
 	getRequest<T>(url: URL, config: AxiosRequestConfig<T> = {}) {
 		return this.sharePointAuthService
-			.getAuth(
-				url,
-				this.configurationService.username,
-				this.configurationService.password
-			)
+			.getAuth(url, this.configurationService.username, this.configurationService.password)
 			.pipe(
 				mergeMap(authResponse => {
 					return this.httpService.get<T>(url.href, {
@@ -51,9 +47,7 @@ export class SharePointService {
 		const site = !!siteMatch ? siteMatch[1] : null;
 
 		const filesRequestURL = new URL(
-			`${
-				folderURL.origin
-			}${site}_api/web/GetFolderByServerRelativeUrl('${encodeURI(
+			`${folderURL.origin}${site}_api/web/GetFolderByServerRelativeUrl('${encodeURI(
 				folderURL.pathname
 			)}')/Files`
 		);
@@ -69,9 +63,7 @@ export class SharePointService {
 					`$orderby`,
 					toArray(
 						from(restOptions.orderby).pipe(
-							mapIx(item =>
-								`${item.field} ${item.order ? Order[item.order] : ''}`.trim()
-							)
+							mapIx(item => `${item.field} ${item.order ? Order[item.order] : ''}`.trim())
 						)
 					).join(`,`)
 				);
