@@ -86,7 +86,7 @@ async function bootstrap() {
 											cellText: false,
 											raw: true
 										},
-										{ range: 1 }
+										{ range: configurationService.headerRow }
 									);
 
 									return dataRows;
