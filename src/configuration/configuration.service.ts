@@ -35,7 +35,7 @@ export class ConfigurationService {
 						.makeOptionMandatory(true)
 				)
 				.addOption(
-					new Option(`-h, --header-row <number>`, `Header rownumber`)
+					new Option(`-h, --header-row <number>`, `Header row number`)
 						.env(`HEADER_ROW`)
 						.default(0)
 						.argParser(value => {
