@@ -29,6 +29,7 @@ export class ConfigurationService {
 							}
 						})
 				)
+				.addOption(new Option(`--filename <name>`, `Name of file to extract`).env(`FILENAME`))
 				.addOption(
 					new Option(`-s, --sheet <name>`, `Sheet name to extract`)
 						.env(`SHEET`)
@@ -133,6 +134,7 @@ export class ConfigurationService {
 				.parse()
 				.opts<{
 					sharePointFolder: URL;
+					filename?: string;
 					sheet: string;
 					headerRow: number;
 
@@ -158,6 +160,9 @@ export class ConfigurationService {
 
 	get sharePointFolder() {
 		return this.optionValues.sharePointFolder;
+	}
+	get filename() {
+		return this.optionValues.filename;
 	}
 	get sheet() {
 		return this.optionValues.sheet;

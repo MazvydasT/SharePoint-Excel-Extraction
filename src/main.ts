@@ -44,13 +44,17 @@ async function bootstrap() {
 		resetOnSuccess: true
 	};
 
+	const nameFilter = !!configurationService.filename
+		? `Name eq '${configurationService.filename}'`
+		: undefined;
+
 	while (true) {
 		logger.log(`Starting extraction`);
 
 		try {
 			await firstValueFrom(
 				sharePointService
-					.getLastAddedFileDataFromFolder(configurationService.sharePointFolder)
+					.getLastAddedFileDataFromFolder(configurationService.sharePointFolder, nameFilter)
 					.pipe(
 						retry(retryConfig),
 						mergeMap(async fileData => {
@@ -64,13 +68,13 @@ async function bootstrap() {
 								configurationService.sharePointFolder.href
 							);
 
-							const fileURL = new URL(`${fileData.__metadata.id}//$value`);
-
 							if (cachedETag == fileData.ETag) {
 								logger.log(`No changes`);
 
 								return EMPTY;
 							}
+
+							const fileURL = new URL(`${fileData.__metadata.id}//$value`);
 
 							return sharePointService.getFileContent(fileURL).pipe(
 								retry(retryConfig),

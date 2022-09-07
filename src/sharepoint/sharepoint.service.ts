@@ -55,6 +55,9 @@ export class SharePointService {
 		if (!!restOptions) {
 			const searchParams = filesRequestURL.searchParams;
 
+			if (!!restOptions.filter && restOptions.filter.trim().length > 0)
+				searchParams.set(`$filter`, restOptions.filter);
+
 			if (!!restOptions.select && restOptions.select.length > 0)
 				searchParams.set(`$select`, restOptions.select.join(`,`));
 
@@ -90,8 +93,9 @@ export class SharePointService {
 		);
 	}
 
-	getLastAddedFileDataFromFolder(folderURL: URL) {
+	getLastAddedFileDataFromFolder(folderURL: URL, filter?: string) {
 		return this.getFilesInFolder<ISharePointFilesData>(folderURL, {
+			filter,
 			select: [`ETag`],
 			orderby: [
 				{
