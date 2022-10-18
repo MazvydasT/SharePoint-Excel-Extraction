@@ -1,14 +1,15 @@
 import { CACHE_MANAGER, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Cache } from 'cache-manager';
-import { from } from 'ix/iterable';
-import { map as mapIx } from 'ix/iterable/operators';
+import { from, toArray } from 'ix/iterable';
+import { flat, flatMap, groupBy, map as mapIx, orderBy } from 'ix/iterable/operators';
 import moment from 'moment';
 import {
 	EMPTY,
 	firstValueFrom,
 	map,
 	mergeMap,
+	of,
 	retry,
 	RetryConfig,
 	switchAll,
@@ -80,20 +81,48 @@ async function bootstrap() {
 								retry(retryConfig),
 
 								mergeMap(excelFile => {
-									const dataRows = excelService.getSheetData<any>(
-										excelFile,
-										configurationService.sheet,
-										{
-											cellFormula: false,
-											cellHTML: false,
-											cellDates: true,
-											cellText: false,
-											raw: true
-										},
-										{ range: configurationService.headerRow }
+									const worksheet = excelService.getSheet(excelFile, configurationService.sheet, {
+										cellFormula: false,
+										cellHTML: false,
+										cellDates: true,
+										cellText: false,
+										raw: true
+									});
+
+									const headerRowNumber = configurationService.headerRow;
+
+									const header = toArray(
+										from(
+											excelService.getSheetData<string>(worksheet, {
+												header: 1,
+												range: worksheet['!ref']?.replace(/\d+/g, `${headerRowNumber + 1}`)
+											})
+										).pipe(
+											flat(1),
+											mapIx((columnName, index) => ({
+												name: columnName.trim(),
+												index
+											})),
+											groupBy(columnInfo => columnInfo.name),
+											flatMap(columnInfoGroup =>
+												columnInfoGroup.pipe(
+													mapIx(({ name, index }, inGroupIndex) => ({
+														name: name + (inGroupIndex > 0 ? `_${inGroupIndex}` : ``),
+														index
+													}))
+												)
+											),
+											orderBy(({ index }) => index),
+											mapIx(({ name }) => name)
+										)
 									);
 
-									return dataRows;
+									const dataRows = excelService.getSheetData<any>(worksheet, {
+										header,
+										range: headerRowNumber
+									});
+
+									return of(dataRows);
 								}),
 								retry(retryConfig),
 								tap(() => logger.log(`${configurationService.sheet} sheet data extracted`)),
