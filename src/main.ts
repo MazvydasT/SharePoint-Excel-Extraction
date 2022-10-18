@@ -119,7 +119,7 @@ async function bootstrap() {
 
 									const dataRows = excelService.getSheetData<any>(worksheet, {
 										header,
-										range: headerRowNumber
+										range: headerRowNumber + 1
 									});
 
 									return of(dataRows);
