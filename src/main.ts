@@ -93,14 +93,14 @@ async function bootstrap() {
 
 									const header = toArray(
 										from(
-											excelService.getSheetData<string>(worksheet, {
+											excelService.getSheetData<string | null>(worksheet, {
 												header: 1,
 												range: worksheet['!ref']?.replace(/\d+/g, `${headerRowNumber + 1}`)
 											})
 										).pipe(
 											flat(1),
 											mapIx((columnName, index) => ({
-												name: columnName.trim(),
+												name: columnName?.trim() ?? ``,
 												index
 											})),
 											groupBy(columnInfo => columnInfo.name),
