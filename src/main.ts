@@ -100,7 +100,7 @@ async function bootstrap() {
 										).pipe(
 											flat(1),
 											mapIx((columnName, index) => ({
-												name: columnName?.trim() ?? ``,
+												name: columnName?.trim() ?? `BLANK`,
 												index
 											})),
 											groupBy(columnInfo => columnInfo.name),
