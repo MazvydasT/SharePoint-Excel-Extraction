@@ -7,6 +7,7 @@ import { map, mergeMap } from 'rxjs';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { SharePointAuthService } from '../sharepoint-auth/sharepoint-auth.service';
 import { IRESTOptions } from './IRESTOptions';
+import { ISharePointFileByURLData } from './ISharePointFileByURLData';
 import { ISharePointFilesData } from './ISharePointFilesData';
 
 export enum Order {
@@ -42,9 +43,31 @@ export class SharePointService {
 			);
 	}
 
-	getFilesInFolder<T>(folderURL: URL, restOptions?: IRESTOptions) {
-		const siteMatch = folderURL.pathname.match(/^(.*?sites\/.+?\/).*$/);
+	private getSite(url: URL) {
+		const siteMatch = url.pathname.match(/^(.*?(?:sites|personal)\/.+?\/).*$/);
 		const site = !!siteMatch ? siteMatch[1] : null;
+
+		return site ?? ``;
+	}
+
+	getFileByURL(fileURL: URL) {
+		const site = this.getSite(fileURL);
+
+		const filesRequestURL = new URL(
+			`${fileURL.origin}${site}_api/web/GetFileByUrl('${encodeURI(fileURL.pathname)}')`
+		);
+
+		return this.getRequest<ISharePointFileByURLData>(filesRequestURL, {
+			headers: { ...ACCEPT_JSON }
+		}).pipe(
+			map(response => {
+				return response.data.d;
+			})
+		);
+	}
+
+	getFilesInFolder<T>(folderURL: URL, restOptions?: IRESTOptions) {
+		const site = this.getSite(folderURL);
 
 		const filesRequestURL = new URL(
 			`${folderURL.origin}${site}_api/web/GetFolderByServerRelativeUrl('${encodeURI(

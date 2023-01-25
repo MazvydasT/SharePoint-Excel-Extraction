@@ -13,149 +13,176 @@ export class ConfigurationService {
 
 		config({ path: envPath, override: true });
 
-		return Object.freeze(
-			new Command()
-				.addOption(envOption)
+		const sharePointFolderOption = `--share-point-folder`;
+		const fileURLOption = `--file-url`;
 
-				.addOption(
-					new Option(`-f, --share-point-folder <address>`, `SharePoint folder address`)
-						.env(`SHAREPOINT_FOLDER`)
-						.makeOptionMandatory(true)
-						.argParser(value => {
-							try {
-								return new URL(value);
-							} catch (_) {
-								throw new InvalidArgumentError(``);
-							}
-						})
+		const command = new Command()
+			.addOption(envOption)
+
+			.addOption(
+				new Option(`-f, ${sharePointFolderOption} <address>`, `SharePoint folder address`)
+					.env(`SHAREPOINT_FOLDER`)
+					//.makeOptionMandatory(true)
+					.argParser(value => {
+						try {
+							return new URL(value);
+						} catch (_) {
+							throw new InvalidArgumentError(``);
+						}
+					})
+			)
+			.addOption(new Option(`--filename <name>`, `Name of file to extract`).env(`FILENAME`))
+
+			.addOption(
+				new Option(`${fileURLOption} <address>`, `File address`)
+					.env(`FILE_URL`)
+					//.makeOptionMandatory(true)
+					.argParser(value => {
+						try {
+							return new URL(value);
+						} catch (_) {
+							throw new InvalidArgumentError(``);
+						}
+					})
+			)
+
+			.addOption(
+				new Option(`-s, --sheet <name>`, `Sheet name to extract`)
+					.env(`SHEET`)
+					.makeOptionMandatory(true)
+			)
+			.addOption(
+				new Option(`-h, --header-row <number>`, `Header row number`)
+					.env(`HEADER_ROW`)
+					.default(0)
+					.argParser(value => {
+						try {
+							return parseIntClamp(value, { min: 0 });
+						} catch (_) {
+							throw new InvalidArgumentError(``);
+						}
+					})
+			)
+
+			.addOption(
+				new Option(`-u, --username <string>`, `SharePoint username`)
+					.env(`USERNAME`)
+					.makeOptionMandatory(true)
+			)
+			.addOption(
+				new Option(`-p, --password <string>`, `SharePoint password`)
+					.env(`PASSWORD`)
+					.makeOptionMandatory(true)
+			)
+
+			.addOption(new Option(`--https-proxy <string>`, `HTTP proxy`).env(`HTTPS_PROXY`))
+
+			.addOption(
+				new Option(`-r, --retry <count>`, `Retry errors`)
+					.env(`RETRY`)
+					.default(5)
+					.argParser(value => {
+						try {
+							return parseIntClamp(value, { min: 0 });
+						} catch (_) {
+							throw new InvalidArgumentError(``);
+						}
+					})
+			)
+			.addOption(
+				new Option(`--retry-delay <ms>`, `Time delay in ms before retrying errors`)
+					.env(`RETRY_DELAY`)
+					.default(10000)
+					.argParser(value => {
+						try {
+							return parseIntClamp(value, { min: 0 });
+						} catch (_) {
+							throw new InvalidArgumentError(``);
+						}
+					})
+			)
+
+			.addOption(
+				new Option(
+					`-c, --persistent-error-cooldown <ms>`,
+					`Time in ms between re-extarction attempts after persistent error`
 				)
-				.addOption(new Option(`--filename <name>`, `Name of file to extract`).env(`FILENAME`))
-				.addOption(
-					new Option(`-s, --sheet <name>`, `Sheet name to extract`)
-						.env(`SHEET`)
-						.makeOptionMandatory(true)
-				)
-				.addOption(
-					new Option(`-h, --header-row <number>`, `Header row number`)
-						.env(`HEADER_ROW`)
-						.default(0)
-						.argParser(value => {
-							try {
-								return parseIntClamp(value, { min: 0 });
-							} catch (_) {
-								throw new InvalidArgumentError(``);
-							}
-						})
-				)
+					.env(`PERSISTENT_ERROR_COOLDOWN`)
+					.default(600000)
+					.argParser(parseInt)
+			)
 
-				.addOption(
-					new Option(`-u, --username <string>`, `SharePoint username`)
-						.env(`USERNAME`)
-						.makeOptionMandatory(true)
-				)
-				.addOption(
-					new Option(`-p, --password <string>`, `SharePoint password`)
-						.env(`PASSWORD`)
-						.makeOptionMandatory(true)
-				)
+			.addOption(
+				new Option(`--cron <expression>`, `Cron expression to schedule extraction`)
+					.env(`CRON`)
+					.argParser(value => {
+						try {
+							return !value ? undefined : parseExpression(value, { iterator: true });
+						} catch (_) {
+							throw new InvalidArgumentError(``);
+						}
+					})
+			)
 
-				.addOption(new Option(`--https-proxy <string>`, `HTTP proxy`).env(`HTTPS_PROXY`))
+			.addOption(
+				new Option(`--bqkeyfile <filepath>`, 'BigQuery key file')
+					.env(`BQKEYFILE`)
+					.makeOptionMandatory(true)
+			)
+			.addOption(
+				new Option(`--bqproject <name>`, `BigQuery project name`)
+					.env(`BQPROJECT`)
+					.makeOptionMandatory(true)
+			)
+			.addOption(
+				new Option(`--bqdataset <name>`, `BigQuery dataset name`)
+					.env(`BQDATASET`)
+					.makeOptionMandatory(true)
+			)
+			.addOption(
+				new Option(`--bqtable <name>`, `BigQuery table name`)
+					.env(`BQTABLE`)
+					.makeOptionMandatory(true)
+			)
 
-				.addOption(
-					new Option(`-r, --retry <count>`, `Retry errors`)
-						.env(`RETRY`)
-						.default(5)
-						.argParser(value => {
-							try {
-								return parseIntClamp(value, { min: 0 });
-							} catch (_) {
-								throw new InvalidArgumentError(``);
-							}
-						})
-				)
-				.addOption(
-					new Option(`--retry-delay <ms>`, `Time delay in ms before retrying errors`)
-						.env(`RETRY_DELAY`)
-						.default(10000)
-						.argParser(value => {
-							try {
-								return parseIntClamp(value, { min: 0 });
-							} catch (_) {
-								throw new InvalidArgumentError(``);
-							}
-						})
-				)
+			.showHelpAfterError(true)
 
-				.addOption(
-					new Option(
-						`-c, --persistent-error-cooldown <ms>`,
-						`Time in ms between re-extarction attempts after persistent error`
-					)
-						.env(`PERSISTENT_ERROR_COOLDOWN`)
-						.default(600000)
-						.argParser(parseInt)
-				)
+			.parse();
 
-				.addOption(
-					new Option(`--cron <expression>`, `Cron expression to schedule extraction`)
-						.env(`CRON`)
-						.argParser(value => {
-							try {
-								return !value ? undefined : parseExpression(value, { iterator: true });
-							} catch (_) {
-								throw new InvalidArgumentError(``);
-							}
-						})
-				)
+		const options = command.opts<{
+			sharePointFolder?: URL;
+			filename?: string;
 
-				.addOption(
-					new Option(`--bqkeyfile <filepath>`, 'BigQuery key file')
-						.env(`BQKEYFILE`)
-						.makeOptionMandatory(true)
-				)
-				.addOption(
-					new Option(`--bqproject <name>`, `BigQuery project name`)
-						.env(`BQPROJECT`)
-						.makeOptionMandatory(true)
-				)
-				.addOption(
-					new Option(`--bqdataset <name>`, `BigQuery dataset name`)
-						.env(`BQDATASET`)
-						.makeOptionMandatory(true)
-				)
-				.addOption(
-					new Option(`--bqtable <name>`, `BigQuery table name`)
-						.env(`BQTABLE`)
-						.makeOptionMandatory(true)
-				)
+			fileUrl?: URL;
 
-				.showHelpAfterError(true)
+			sheet: string;
+			headerRow: number;
 
-				.parse()
-				.opts<{
-					sharePointFolder: URL;
-					filename?: string;
-					sheet: string;
-					headerRow: number;
+			username: string;
+			password: string;
 
-					username: string;
-					password: string;
+			httpsProxy?: string;
 
-					httpsProxy?: string;
+			retry: number;
+			retryDelay: number;
 
-					retry: number;
-					retryDelay: number;
+			persistentErrorCooldown: number;
 
-					persistentErrorCooldown: number;
+			cron?: CronExpression<true>;
 
-					cron?: CronExpression<true>;
+			bqkeyfile: string;
+			bqproject: string;
+			bqdataset: string;
+			bqtable: string;
+		}>();
 
-					bqkeyfile: string;
-					bqproject: string;
-					bqdataset: string;
-					bqtable: string;
-				}>()
-		);
+		if (
+			(!options.sharePointFolder && !options.fileUrl) ||
+			(!!options.sharePointFolder && !!options.fileUrl)
+		)
+			command.error(`${sharePointFolderOption} only or ${fileURLOption} only must be set`);
+
+		return Object.freeze(options);
 	})();
 
 	get sharePointFolder() {
@@ -164,6 +191,11 @@ export class ConfigurationService {
 	get filename() {
 		return this.optionValues.filename;
 	}
+
+	get fileURL() {
+		return this.optionValues.fileUrl;
+	}
+
 	get sheet() {
 		return this.optionValues.sheet;
 	}
