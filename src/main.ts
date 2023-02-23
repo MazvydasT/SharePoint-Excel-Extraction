@@ -105,7 +105,8 @@ async function bootstrap() {
 											...excelService
 												.getSheetData<string | null>(worksheet, {
 													header: 1,
-													range: worksheet['!ref']?.replace(/\d+/g, `${headerRowIndex + 1}`)
+													range: worksheet['!ref']?.replace(/\d+/g, `${headerRowIndex + 1}`),
+													defval: null
 												})
 												.flat(1),
 
