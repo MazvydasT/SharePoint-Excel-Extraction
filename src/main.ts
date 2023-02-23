@@ -2,7 +2,7 @@ import { CACHE_MANAGER, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Cache } from 'cache-manager';
 import { from, toArray } from 'ix/iterable';
-import { flat, flatMap, groupBy, map as mapIx, orderBy } from 'ix/iterable/operators';
+import { flatMap, groupBy, map as mapIx, orderBy } from 'ix/iterable/operators';
 import moment from 'moment';
 import {
 	EMPTY,
@@ -95,16 +95,23 @@ async function bootstrap() {
 									raw: true
 								});
 
-								const headerRowNumber = configurationService.headerRow;
+								const headerRowIndex = configurationService.headerRow;
+
+								const usedRange = excelService.getUsedRange(worksheet);
 
 								const header = toArray(
 									from(
-										excelService.getSheetData<string | null>(worksheet, {
-											header: 1,
-											range: worksheet['!ref']?.replace(/\d+/g, `${headerRowNumber + 1}`)
+										Array.from({
+											...excelService
+												.getSheetData<string | null>(worksheet, {
+													header: 1,
+													range: worksheet['!ref']?.replace(/\d+/g, `${headerRowIndex + 1}`)
+												})
+												.flat(1),
+
+											length: usedRange?.maxColumn
 										})
 									).pipe(
-										flat(1),
 										mapIx((columnName, index) => {
 											let trimmedColumnName = `${columnName ?? ``}`.trim();
 
@@ -112,7 +119,10 @@ async function bootstrap() {
 												trimmedColumnName = ``;
 
 											return {
-												name: trimmedColumnName.length > 0 ? trimmedColumnName : `BLANK`,
+												name:
+													trimmedColumnName.length > 0
+														? trimmedColumnName
+														: `BLANK (${excelService.columnNumberToName(index + 1)})`,
 												index
 											};
 										}),
@@ -132,7 +142,8 @@ async function bootstrap() {
 
 								const dataRows = excelService.getSheetData<any>(worksheet, {
 									header,
-									range: headerRowNumber + 1
+									//range: headerRowNumber + 1
+									range: `A${headerRowIndex + 2}:${usedRange?.maxColumnName}${usedRange?.maxRow}`
 								});
 
 								return of(dataRows);
