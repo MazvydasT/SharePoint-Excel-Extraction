@@ -38,6 +38,7 @@ async function bootstrap() {
 	const nonAlphaNumericRegExp = /[^A-Z0-9]/gi;
 	const nonAlphaNumericStartRegExp = /^[^A-Z0-9]+/gi;
 	const nonAlphaNumericEndRegExp = /[^A-Z0-9]+$/gi;
+	const numericStartRegExp = /^\d.*$/gi;
 
 	const retryConfig: RetryConfig = {
 		count: configurationService.retries,
@@ -119,6 +120,9 @@ async function bootstrap() {
 											if (trimmedColumnName.replace(nonAlphaNumericRegExp, ``).length == 0)
 												trimmedColumnName = ``;
 
+											if (numericStartRegExp.test(trimmedColumnName))
+												trimmedColumnName = `_` + trimmedColumnName;
+
 											return {
 												name:
 													trimmedColumnName.length > 0
@@ -159,7 +163,7 @@ async function bootstrap() {
 											Object.entries(dataRow).map(([key, value]) => {
 												const newKey = key
 													.replaceAll(nonAlphaNumericRegExp, `_`)
-													.replaceAll(nonAlphaNumericStartRegExp, ``)
+													.replaceAll(nonAlphaNumericStartRegExp, `_`)
 													.replaceAll(nonAlphaNumericEndRegExp, ``);
 
 												let newValue = value;
