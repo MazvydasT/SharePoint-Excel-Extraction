@@ -38,7 +38,7 @@ async function bootstrap() {
 	const nonAlphaNumericRegExp = /[^A-Z0-9]/gi;
 	const nonAlphaNumericStartRegExp = /^[^A-Z0-9]+/gi;
 	const nonAlphaNumericEndRegExp = /[^A-Z0-9]+$/gi;
-	const numericStartRegExp = /^\d.*$/gi;
+	const numericStartRegExp = /^\d.*$/;
 
 	const retryConfig: RetryConfig = {
 		count: configurationService.retries,
@@ -147,7 +147,6 @@ async function bootstrap() {
 
 								const dataRows = excelService.getSheetData<any>(worksheet, {
 									header,
-									//range: headerRowNumber + 1
 									range: `A${headerRowIndex + 2}:${usedRange?.maxColumnName}${usedRange?.maxRow}`
 								});
 
