@@ -37,6 +37,7 @@ async function bootstrap() {
 
 	const nonAlphaNumericRegExp = /[^A-Z0-9]/gi;
 	const nonAlphaNumericStartRegExp = /^[^A-Z0-9]+/gi;
+	const nonAlphaNumericStarOnlyBeforeLettersRegExp = /^[^A-Z0-9]+(?=[A-Z])/gi;
 	const nonAlphaNumericEndRegExp = /[^A-Z0-9]+$/gi;
 	const numericStartRegExp = /^\d.*$/;
 
@@ -163,6 +164,7 @@ async function bootstrap() {
 												const newKey = key
 													.replaceAll(nonAlphaNumericRegExp, `_`)
 													.replaceAll(nonAlphaNumericStartRegExp, `_`)
+													.replaceAll(nonAlphaNumericStarOnlyBeforeLettersRegExp, ``)
 													.replaceAll(nonAlphaNumericEndRegExp, ``);
 
 												let newValue = value;
