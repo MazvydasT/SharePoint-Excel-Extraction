@@ -148,7 +148,8 @@ async function bootstrap() {
 
 								const dataRows = excelService.getSheetData<any>(worksheet, {
 									header,
-									range: `A${headerRowIndex + 2}:${usedRange?.maxColumnName}${usedRange?.maxRow}`
+									range: `A${headerRowIndex + 2}:${usedRange?.maxColumnName}${usedRange?.maxRow}`,
+									...(configurationService.includeBlankColumns ? { defval: null } : {})
 								});
 
 								return of(dataRows);

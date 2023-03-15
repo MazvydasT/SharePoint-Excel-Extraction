@@ -64,6 +64,8 @@ export class ConfigurationService {
 					})
 			)
 
+			.addOption(new Option(`--include-blank-columns`).env(`INCLUDE_BLANK_COLUMNS`).default(false))
+
 			.addOption(
 				new Option(`-u, --username <string>`, `SharePoint username`)
 					.env(`USERNAME`)
@@ -158,6 +160,8 @@ export class ConfigurationService {
 			sheet: string;
 			headerRow: number;
 
+			includeBlankColumns: boolean;
+
 			username: string;
 			password: string;
 
@@ -201,6 +205,10 @@ export class ConfigurationService {
 	}
 	get headerRow() {
 		return this.optionValues.headerRow;
+	}
+
+	get includeBlankColumns() {
+		return this.optionValues.includeBlankColumns;
 	}
 
 	get username() {
