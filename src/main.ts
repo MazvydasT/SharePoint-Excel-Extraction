@@ -51,8 +51,12 @@ async function bootstrap() {
 		? `Name eq '${configurationService.filename}'`
 		: undefined;
 
+	const bigQueryDateTimeFormat = ``;
+
 	while (true) {
 		logger.log(`Starting extraction`);
+
+		const extractionTime = moment().utc().format(bigQueryDateTimeFormat);
 
 		try {
 			await firstValueFrom(
@@ -173,7 +177,7 @@ async function bootstrap() {
 												if (value instanceof Date)
 													newValue = moment(value)
 														.add(1, `millisecond`) // Fixes time being displayed 1s less than what is in source Excel file
-														.format(`YYYY-MM-DD HH:mm:ss`);
+														.format(bigQueryDateTimeFormat);
 												else if (typeof newValue == 'string') {
 													if (newValue.trim().length == 0) newValue = null;
 												}
@@ -181,7 +185,8 @@ async function bootstrap() {
 												return [newKey, newValue];
 											})
 										)
-									)
+									),
+									mapIx(dataRow => ({ ...dataRow, 'Extraction Time': extractionTime }))
 								)
 							),
 
