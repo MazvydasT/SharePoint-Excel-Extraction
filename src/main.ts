@@ -186,7 +186,7 @@ async function bootstrap() {
 											})
 										)
 									),
-									mapIx(dataRow => ({ ...dataRow, 'Extraction Time': extractionTime }))
+									mapIx(dataRow => ({ ...dataRow, ExtractionTime: extractionTime }))
 								)
 							),
 
