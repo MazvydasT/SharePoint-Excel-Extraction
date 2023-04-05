@@ -57,7 +57,9 @@ async function bootstrap() {
 
 	const nameColumn = `Name`;
 
-	const nameFilter = startsWithStar
+	const nameFilter = !fileName
+		? undefined
+		: startsWithStar
 		? `${substringFunctionName}('${fileNameWithoutStars}',${nameColumn})`
 		: !startsWithStar && !endsWithStar
 		? `${nameColumn} eq '${fileNameWithoutStars}'`
