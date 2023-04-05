@@ -6,12 +6,12 @@ import { flatMap, groupBy, map as mapIx, orderBy } from 'ix/iterable/operators';
 import moment from 'moment';
 import {
 	EMPTY,
+	RetryConfig,
 	firstValueFrom,
 	map,
 	mergeMap,
 	of,
 	retry,
-	RetryConfig,
 	switchAll,
 	tap,
 	timer
@@ -47,9 +47,21 @@ async function bootstrap() {
 		resetOnSuccess: true
 	};
 
-	const nameFilter = !!configurationService.filename
-		? `Name eq '${configurationService.filename}'`
-		: undefined;
+	const fileName = configurationService.filename;
+	const fileNameWithoutStars = fileName?.replace(/(?:\*+)|(?:\*+$)/g, ``);
+	const startsWithStar = fileName?.startsWith('*') ?? false;
+	const endsWithStar = fileName?.endsWith('*') ?? false;
+
+	const substringFunctionName = `substringof`;
+	const startsWithFunctionName = `startswith`;
+
+	const nameColumn = `Name`;
+
+	const nameFilter = startsWithStar
+		? `${substringFunctionName}('${fileNameWithoutStars}',${nameColumn})`
+		: !startsWithStar && !endsWithStar
+		? `${nameColumn} eq '${fileNameWithoutStars}'`
+		: `${startsWithFunctionName}(${nameColumn},'${fileNameWithoutStars}')`;
 
 	const bigQueryDateTimeFormat = ``;
 
