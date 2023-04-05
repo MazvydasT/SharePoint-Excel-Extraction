@@ -63,7 +63,7 @@ async function bootstrap() {
 		? `${nameColumn} eq '${fileNameWithoutStars}'`
 		: `${startsWithFunctionName}(${nameColumn},'${fileNameWithoutStars}')`;
 
-	const bigQueryDateTimeFormat = ``;
+	const bigQueryDateTimeFormat = `YYYY-MM-DD HH:mm:ss`;
 
 	while (true) {
 		logger.log(`Starting extraction`);
