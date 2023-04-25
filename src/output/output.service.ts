@@ -1,3 +1,4 @@
+import { TableSchema } from '@google-cloud/bigquery';
 import { Injectable } from '@nestjs/common';
 import { IterableX } from 'ix/iterable';
 import { Readable } from 'stream';
@@ -17,7 +18,7 @@ export class OutputService {
 		});
 	}
 
-	outputToBigQuery(items: IterableX<any>) {
-		return this.bigQueryService.write(this.itemsArrayToReadable(items[Symbol.iterator]()));
+	outputToBigQuery(items: IterableX<any>, schema?: TableSchema) {
+		return this.bigQueryService.write(this.itemsArrayToReadable(items[Symbol.iterator]()), schema);
 	}
 }

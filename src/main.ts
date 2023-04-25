@@ -1,3 +1,4 @@
+import { TableSchema } from '@google-cloud/bigquery';
 import { CACHE_MANAGER, Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Cache } from 'cache-manager';
@@ -175,8 +176,30 @@ async function bootstrap() {
 							retry(retryConfig),
 							tap(() => logger.log(`${configurationService.sheet} sheet data extracted`)),
 
-							map(dataRows =>
-								from(dataRows).pipe(
+							map(dataRows => {
+								const extractionTimeFieldName = `ExtractionTime`;
+								const stringType = `STRING`;
+								const integerType = `INTEGER`;
+								const floatType = `FLOAT`;
+								const timestampType = `TIMESTAMP`;
+
+								const fieldTypes = new Map<
+									string,
+									Record<
+										| typeof timestampType
+										| typeof stringType
+										| typeof integerType
+										| typeof floatType,
+										boolean
+									>
+								>([
+									[
+										extractionTimeFieldName,
+										{ TIMESTAMP: true, STRING: false, INTEGER: false, FLOAT: false }
+									]
+								]);
+
+								let dataRowsIterable = from(dataRows).pipe(
 									mapIx(dataRow =>
 										Object.fromEntries(
 											Object.entries(dataRow).map(([key, value]) => {
@@ -186,26 +209,76 @@ async function bootstrap() {
 													.replaceAll(nonAlphaNumericStarOnlyBeforeLettersRegExp, ``)
 													.replaceAll(nonAlphaNumericEndRegExp, ``);
 
+												let fieldType = fieldTypes.get(newKey);
+
+												if (!fieldType) {
+													fieldType = {
+														TIMESTAMP: false,
+														STRING: false,
+														INTEGER: false,
+														FLOAT: false
+													};
+													fieldTypes.set(newKey, fieldType);
+												}
+
 												let newValue = value;
 
-												if (value instanceof Date)
+												if (value instanceof Date) {
 													newValue = moment(value)
 														.add(1, `millisecond`) // Fixes time being displayed 1s less than what is in source Excel file
 														.format(bigQueryDateTimeFormat);
-												else if (typeof newValue == 'string') {
+
+													fieldType.TIMESTAMP = true;
+												} else if (typeof newValue == 'string') {
 													if (newValue.trim().length == 0) newValue = null;
+
+													if (!!newValue) fieldType.STRING = true;
+												} else if (typeof newValue == `number`) {
+													const isInteger = Number.isInteger(newValue);
+
+													if (!isInteger) fieldType.FLOAT = true;
+													if (isInteger) fieldType.INTEGER = true;
 												}
 
 												return [newKey, newValue];
 											})
 										)
 									),
-									mapIx(dataRow => ({ ...dataRow, ExtractionTime: extractionTime }))
-								)
-							),
+									mapIx(dataRow => ({ ...dataRow, [extractionTimeFieldName]: extractionTime }))
+								);
 
-							mergeMap(dataRows => {
-								return outputService.outputToBigQuery(dataRows);
+								dataRowsIterable = from(toArray(dataRowsIterable));
+
+								const schema: TableSchema = {
+									fields: toArray(
+										from(fieldTypes.entries()).pipe(
+											mapIx(([name, type]) => ({
+												mode: `NULLABLE`,
+												name,
+												type: type.STRING
+													? stringType
+													: type.TIMESTAMP && (type.FLOAT || type.INTEGER)
+													? stringType
+													: type.TIMESTAMP
+													? timestampType
+													: type.FLOAT
+													? floatType
+													: type.INTEGER
+													? integerType
+													: stringType
+											}))
+										)
+									)
+								};
+
+								return {
+									dataRows: dataRowsIterable,
+									schema
+								};
+							}),
+
+							mergeMap(({ dataRows, schema }) => {
+								return outputService.outputToBigQuery(dataRows, schema);
 							}),
 							retry(retryConfig),
 							tap(() => {
