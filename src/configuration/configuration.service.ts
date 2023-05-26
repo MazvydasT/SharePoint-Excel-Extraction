@@ -15,6 +15,7 @@ export class ConfigurationService {
 
 		const sharePointFolderOption = `--share-point-folder`;
 		const fileURLOption = `--file-url`;
+		const filePathOption = `--file-path`;
 
 		const command = new Command()
 			.addOption(envOption)
@@ -45,6 +46,8 @@ export class ConfigurationService {
 						}
 					})
 			)
+
+			.addOption(new Option(`${filePathOption} <path>`, `File path`).env(`FILE_PATH`))
 
 			.addOption(
 				new Option(`-s, --sheet <name>`, `Sheet name to extract`)
@@ -156,6 +159,7 @@ export class ConfigurationService {
 			filename?: string;
 
 			fileUrl?: URL;
+			filePath?: string;
 
 			sheet: string;
 			headerRow: number;
@@ -181,10 +185,15 @@ export class ConfigurationService {
 		}>();
 
 		if (
-			(!options.sharePointFolder && !options.fileUrl) ||
-			(!!options.sharePointFolder && !!options.fileUrl)
+			[!!options.sharePointFolder, !!options.fileUrl, !!options.filePath].filter(v => v).length != 1
 		)
-			command.error(`${sharePointFolderOption} only or ${fileURLOption} only must be set`);
+			command.error(
+				`One and only one of the following must be set: ${[
+					sharePointFolderOption,
+					fileURLOption,
+					filePathOption
+				].join(', ')}`
+			);
 
 		return Object.freeze(options);
 	})();
@@ -198,6 +207,10 @@ export class ConfigurationService {
 
 	get fileURL() {
 		return this.optionValues.fileUrl;
+	}
+
+	get filePath() {
+		return this.optionValues.filePath;
 	}
 
 	get sheet() {

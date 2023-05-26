@@ -20,9 +20,15 @@ import {
 import { AppModule } from './app.module';
 import { ConfigurationService } from './configuration/configuration.service';
 import { ExcelService } from './excel/excel.service';
+import { FileSystemService } from './file-system/file-system.service';
 import { OutputService } from './output/output.service';
 import { SharePointService } from './sharepoint/sharepoint.service';
 import { getAdditionalProperties } from './utils';
+
+enum FileType {
+	SharePoint,
+	FileSystem
+}
 
 async function bootstrap() {
 	//const app = await NestFactory.create(AppModule);
@@ -30,6 +36,7 @@ async function bootstrap() {
 
 	const configurationService = app.get(ConfigurationService);
 	const sharePointService = app.get(SharePointService);
+	const fileSystemService = app.get(FileSystemService);
 	const excelService = app.get(ExcelService);
 	const outputService = app.get(OutputService);
 	const cache = app.get<Cache>(CACHE_MANAGER);
@@ -75,13 +82,29 @@ async function bootstrap() {
 
 		try {
 			await firstValueFrom(
-				(!!configurationService.sharePointFolder
-					? sharePointService.getLastAddedFileDataFromFolder(
-							configurationService.sharePointFolder,
-							nameFilter
+				(!!configurationService.filePath
+					? fileSystemService.getFileInfo(configurationService.filePath).pipe(
+							map(data => ({
+								etag: data.mtime.toISOString(),
+								id: undefined,
+								type: FileType.FileSystem
+							}))
 					  )
-					: // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-					  sharePointService.getFileByURL(configurationService.fileURL!)
+					: (!!configurationService.sharePointFolder
+							? sharePointService.getLastAddedFileDataFromFolder(
+									configurationService.sharePointFolder,
+									nameFilter
+							  )
+							: !!configurationService.fileURL
+							? sharePointService.getFileByURL(configurationService.fileURL)
+							: EMPTY
+					  ).pipe(
+							map(data => ({
+								etag: data?.ETag,
+								id: data?.__metadata.id,
+								type: FileType.SharePoint
+							}))
+					  )
 				).pipe(
 					retry(retryConfig),
 					mergeMap(async fileData => {
@@ -92,19 +115,23 @@ async function bootstrap() {
 						}
 
 						const cachedETag = await cache.get<string>(
-							(configurationService.sharePointFolder ?? configurationService.fileURL ?? new URL(``))
-								.href
+							(configurationService.sharePointFolder ?? configurationService.fileURL)?.href ??
+								configurationService.filePath ??
+								``
 						);
 
-						if (cachedETag == fileData.ETag) {
+						if (cachedETag == fileData.etag) {
 							logger.log(`No changes`);
 
 							return EMPTY;
 						}
 
-						const fileURL = new URL(`${fileData.__metadata.id}//$value`);
-
-						return sharePointService.getFileContent(fileURL).pipe(
+						return (
+							fileData.type == FileType.SharePoint
+								? sharePointService.getFileContent(new URL(`${fileData.id}//$value`))
+								: // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+								  fileSystemService.getFileContent(configurationService.filePath!)
+						).pipe(
 							retry(retryConfig),
 
 							mergeMap(excelFile => {
@@ -285,12 +312,10 @@ async function bootstrap() {
 								logger.log(`Data written to BigQuery`);
 
 								cache.set(
-									(
-										configurationService.sharePointFolder ??
-										configurationService.fileURL ??
-										new URL(``)
-									).href,
-									fileData.ETag
+									(configurationService.sharePointFolder ?? configurationService.fileURL)?.href ??
+										configurationService.filePath ??
+										``,
+									fileData.etag
 								);
 							})
 						);
