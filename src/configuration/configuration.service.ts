@@ -9,9 +9,19 @@ export class ConfigurationService {
 	private readonly optionValues = (() => {
 		const envOption = new Option(`--env <path>`, `Path to .env file`).env(`ENV`);
 
-		const envPath = new Command().addOption(envOption).parse().opts<{ env?: string }>().env;
+		try {
+			const envPath = new Command()
+				.addOption(envOption)
+				.configureOutput({
+					writeErr: () => null,
+					writeOut: () => null
+				})
+				.exitOverride()
+				.parse()
+				.opts<{ env?: string }>().env;
 
-		config({ path: envPath, override: true });
+			config({ path: envPath, override: true });
+		} catch (_) {}
 
 		const sharePointFolderOption = `--share-point-folder`;
 		const fileURLOption = `--file-url`;
@@ -37,7 +47,6 @@ export class ConfigurationService {
 			.addOption(
 				new Option(`${fileURLOption} <address>`, `File address`)
 					.env(`FILE_URL`)
-					//.makeOptionMandatory(true)
 					.argParser(value => {
 						try {
 							return new URL(value);
@@ -45,6 +54,14 @@ export class ConfigurationService {
 							throw new InvalidArgumentError(``);
 						}
 					})
+			)
+
+			.addOption(new Option(`--sps2010`, `Get file from SharePoint Server 2010`).env(`SPS2010`))
+			.addOption(new Option(`--ntlm`, `Use NTLM authentication`).env(`NTLM`))
+			.addOption(
+				new Option(`--domain <name>`, `Domain name, used with NTLM authentication`)
+					.env(`DOMAIN`)
+					.default(process.env.USERDOMAIN ?? ``)
 			)
 
 			.addOption(new Option(`${filePathOption} <path>`, `File path`).env(`FILE_PATH`))
@@ -161,6 +178,10 @@ export class ConfigurationService {
 			fileUrl?: URL;
 			filePath?: string;
 
+			sps2010?: boolean;
+			ntlm?: boolean;
+			domain: string;
+
 			sheet: string;
 			headerRow: number;
 
@@ -211,6 +232,18 @@ export class ConfigurationService {
 
 	get filePath() {
 		return this.optionValues.filePath;
+	}
+
+	get sps2010() {
+		return this.optionValues.sps2010;
+	}
+
+	get ntlm() {
+		return this.optionValues.ntlm;
+	}
+
+	get domain() {
+		return this.optionValues.domain;
 	}
 
 	get sheet() {

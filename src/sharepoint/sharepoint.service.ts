@@ -1,6 +1,8 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
 import { AxiosRequestConfig } from 'axios';
+import { NtlmClient } from 'axios-ntlm';
+import { Agent } from 'https';
 import { from, toArray } from 'ix/iterable';
 import { map as mapIx } from 'ix/iterable/operators';
 import { map, mergeMap } from 'rxjs';
@@ -27,18 +29,41 @@ export class SharePointService {
 		private configurationService: ConfigurationService
 	) {}
 
-	getRequest<T>(url: URL, config: AxiosRequestConfig<T> = {}) {
+	private getRequest<T>(url: URL, config: AxiosRequestConfig<T> = {}) {
 		return this.sharePointAuthService
 			.getAuth(url, this.configurationService.username, this.configurationService.password)
 			.pipe(
 				mergeMap(authResponse => {
-					return this.httpService.get<T>(url.href, {
+					const requestConfig: AxiosRequestConfig = {
 						...config,
 						headers: {
 							...config.headers,
 							...authResponse.headers
 						}
-					});
+					};
+
+					let httpServiceReference = this.httpService;
+
+					if (!!this.configurationService.ntlm) {
+						requestConfig.proxy = false;
+						requestConfig.timeout = 10000;
+						requestConfig.httpsAgent = new Agent({
+							keepAlive: true,
+							rejectUnauthorized: false,
+							minVersion: `TLSv1`
+						});
+
+						httpServiceReference = NtlmClient(
+							{
+								username: this.configurationService.username,
+								password: this.configurationService.password,
+								domain: this.configurationService.domain
+							},
+							requestConfig as any
+						) as any as HttpService;
+					}
+
+					return httpServiceReference.get<T>(url.href, requestConfig);
 				})
 			);
 	}
@@ -66,14 +91,24 @@ export class SharePointService {
 		);
 	}
 
-	getFilesInFolder<T>(folderURL: URL, restOptions?: IRESTOptions) {
+	private getFilesInFolder<T>(folderURL: URL, restOptions?: IRESTOptions) {
 		const site = this.getSite(folderURL);
 
-		const filesRequestURL = new URL(
-			`${folderURL.origin}${site}_api/web/GetFolderByServerRelativeUrl('${encodeURI(
-				folderURL.pathname
-			)}')/Files`
-		);
+		let filesRequestURL: URL;
+
+		if (!!this.configurationService.sps2010) {
+			const [library] = decodeURI(folderURL.href).split(`/`).reverse();
+
+			filesRequestURL = new URL(
+				`${folderURL.origin}${site}_vti_bin/listdata.svc/${library.replaceAll(' ', '')}`
+			);
+		} else {
+			filesRequestURL = new URL(
+				`${folderURL.origin}${site}_api/web/GetFolderByServerRelativeUrl('${encodeURI(
+					folderURL.pathname
+				)}')/Files`
+			);
+		}
 
 		if (!!restOptions) {
 			const searchParams = filesRequestURL.searchParams;
@@ -119,14 +154,25 @@ export class SharePointService {
 	getLastAddedFileDataFromFolder(folderURL: URL, filter?: string) {
 		return this.getFilesInFolder<ISharePointFilesData>(folderURL, {
 			filter,
-			select: [`ETag`],
+			...(!!this.configurationService.sps2010 ? {} : { select: [`ETag`] }),
 			orderby: [
 				{
-					field: `TimeCreated`,
+					field: !!this.configurationService.sps2010 ? `Created` : `TimeCreated`,
 					order: Order.desc
 				}
 			],
 			top: 1
-		}).pipe(map(filesData => filesData.d.results.shift()));
+		}).pipe(
+			map(filesData => {
+				if (Array.isArray(filesData.d)) {
+					filesData.d = { results: filesData.d };
+				}
+
+				return filesData;
+			}),
+			map(filesData => {
+				return filesData.d.results.shift();
+			})
+		);
 	}
 }

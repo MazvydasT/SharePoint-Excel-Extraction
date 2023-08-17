@@ -86,7 +86,7 @@ async function bootstrap() {
 					? fileSystemService.getFileInfo(configurationService.filePath).pipe(
 							map(data => ({
 								etag: data.mtime.toISOString(),
-								id: undefined,
+								uri: undefined,
 								type: FileType.FileSystem
 							}))
 					  )
@@ -99,11 +99,13 @@ async function bootstrap() {
 							? sharePointService.getFileByURL(configurationService.fileURL)
 							: EMPTY
 					  ).pipe(
-							map(data => ({
-								etag: data?.ETag,
-								id: data?.__metadata.id,
-								type: FileType.SharePoint
-							}))
+							map(data => {
+								return {
+									etag: data?.ETag ?? data?.__metadata?.etag,
+									uri: data?.__metadata?.id ?? data?.__metadata?.media_src,
+									type: FileType.SharePoint
+								};
+							})
 					  )
 				).pipe(
 					retry(retryConfig),
@@ -114,11 +116,12 @@ async function bootstrap() {
 							return EMPTY;
 						}
 
-						const cachedETag = await cache.get<string>(
-							(configurationService.sharePointFolder ?? configurationService.fileURL)?.href ??
-								configurationService.filePath ??
-								``
-						);
+						const cachedETag =
+							(await cache.get<string>(
+								(configurationService.sharePointFolder ?? configurationService.fileURL)?.href ??
+									configurationService.filePath ??
+									``
+							)) ?? null;
 
 						if (cachedETag == fileData.etag) {
 							logger.log(`No changes`);
@@ -128,7 +131,9 @@ async function bootstrap() {
 
 						return (
 							fileData.type == FileType.SharePoint
-								? sharePointService.getFileContent(new URL(`${fileData.id}//$value`))
+								? sharePointService.getFileContent(
+										new URL(`${fileData.uri}${!!configurationService.sps2010 ? '' : '//$value'}`)
+								  )
 								: // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 								  fileSystemService.getFileContent(configurationService.filePath!)
 						).pipe(
