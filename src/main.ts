@@ -31,7 +31,6 @@ enum FileType {
 }
 
 async function bootstrap() {
-	//const app = await NestFactory.create(AppModule);
 	const app = await NestFactory.createApplicationContext(AppModule);
 
 	const configurationService = app.get(ConfigurationService);
@@ -85,8 +84,8 @@ async function bootstrap() {
 				(!!configurationService.filePath
 					? fileSystemService.getFileInfo(configurationService.filePath).pipe(
 							map(data => ({
-								etag: data.mtime.toISOString(),
-								uri: undefined,
+								etag: data?.stats?.mtime?.toISOString(),
+								uri: data?.path,
 								type: FileType.FileSystem
 							}))
 					  )
@@ -110,8 +109,8 @@ async function bootstrap() {
 				).pipe(
 					retry(retryConfig),
 					mergeMap(async fileData => {
-						if (!fileData) {
-							logger.warn(`No files found in ${configurationService.sharePointFolder}`);
+						if (!fileData.uri) {
+							logger.warn(`No file(s) found`);
 
 							return EMPTY;
 						}
@@ -135,7 +134,7 @@ async function bootstrap() {
 										new URL(`${fileData.uri}${!!configurationService.sps2010 ? '' : '//$value'}`)
 								  )
 								: // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-								  fileSystemService.getFileContent(configurationService.filePath!)
+								  fileSystemService.getFileContent(fileData.uri)
 						).pipe(
 							retry(retryConfig),
 
@@ -206,7 +205,15 @@ async function bootstrap() {
 								return of(dataRows);
 							}),
 							retry(retryConfig),
-							tap(() => logger.log(`${configurationService.sheet} sheet data extracted`)),
+							tap(() =>
+								logger.log(
+									`Sheet ${
+										typeof configurationService.sheet == `number`
+											? `index ${configurationService.sheet}`
+											: `'${configurationService.sheet}'`
+									} data extracted`
+								)
+							),
 
 							map(dataRows => {
 								const extractionTimeFieldName = `ExtractionTime`;
@@ -310,6 +317,7 @@ async function bootstrap() {
 							}),
 
 							mergeMap(({ dataRows, schema }) => {
+								logger.log(`Writing data to BigQuery`);
 								return outputService.outputToBigQuery(dataRows, schema);
 							}),
 							retry(retryConfig),

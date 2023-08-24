@@ -33,7 +33,6 @@ export class ConfigurationService {
 			.addOption(
 				new Option(`-f, ${sharePointFolderOption} <address>`, `SharePoint folder address`)
 					.env(`SHAREPOINT_FOLDER`)
-					//.makeOptionMandatory(true)
 					.argParser(value => {
 						try {
 							return new URL(value);
@@ -64,12 +63,13 @@ export class ConfigurationService {
 					.default(process.env.USERDOMAIN ?? ``)
 			)
 
-			.addOption(new Option(`${filePathOption} <path>`, `File path`).env(`FILE_PATH`))
+			.addOption(
+				new Option(`${filePathOption} <path>`, `File path or glob pattern`).env(`FILE_PATH`)
+			)
 
 			.addOption(
-				new Option(`-s, --sheet <name>`, `Sheet name to extract`)
-					.env(`SHEET`)
-					.makeOptionMandatory(true)
+				new Option(`-s, --sheet <name>`, `Sheet name or index to extract`).env(`SHEET`).default(0)
+				//.makeOptionMandatory(true)
 			)
 			.addOption(
 				new Option(`-h, --header-row <number>`, `Header row number`)
@@ -182,7 +182,7 @@ export class ConfigurationService {
 			ntlm?: boolean;
 			domain: string;
 
-			sheet: string;
+			sheet: string | number;
 			headerRow: number;
 
 			includeBlankColumns: boolean;

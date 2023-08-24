@@ -3,13 +3,15 @@ import { ParsingOptions, read, Sheet2JSONOpts, utils, WorkSheet } from 'xlsx';
 
 @Injectable()
 export class ExcelService {
-	getSheet(excelFile: Buffer, sheetName: string, parsingOptions?: ParsingOptions) {
+	getSheet(excelFile: Buffer, sheetNameOrIndex: string | number, parsingOptions?: ParsingOptions) {
 		const workbook = read(excelFile, {
 			...parsingOptions,
-			sheets: [sheetName]
+			sheets: [sheetNameOrIndex]
 		});
 
-		return workbook.Sheets[sheetName];
+		return workbook.Sheets[
+			typeof sheetNameOrIndex == 'number' ? workbook.SheetNames[sheetNameOrIndex] : sheetNameOrIndex
+		];
 	}
 
 	getSheetData<T>(worksheet: WorkSheet, sheet2JSONOptions?: Sheet2JSONOpts) {
