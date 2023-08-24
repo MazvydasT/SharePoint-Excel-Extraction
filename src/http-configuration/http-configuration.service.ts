@@ -1,4 +1,5 @@
-import { HttpModuleOptions, HttpModuleOptionsFactory, Injectable } from '@nestjs/common';
+import { HttpModuleOptions, HttpModuleOptionsFactory } from '@nestjs/axios';
+import { Injectable } from '@nestjs/common';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { ConfigurationService } from '../configuration/configuration.service';
 

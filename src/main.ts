@@ -1,5 +1,6 @@
 import { TableSchema } from '@google-cloud/bigquery';
-import { CACHE_MANAGER, Logger } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Cache } from 'cache-manager';
 import { from, toArray } from 'ix/iterable';
