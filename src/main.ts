@@ -1,3 +1,8 @@
+// Must be set to false in order for global-agent (used by node-sp-auth) package
+// not to override custom configured HTTP(S) Agents,
+// as override causes failure when using NtlmClient
+process.env.GLOBAL_AGENT_FORCE_GLOBAL_AGENT = `false`;
+
 import { TableSchema } from '@google-cloud/bigquery';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Logger } from '@nestjs/common';
