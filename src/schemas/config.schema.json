@@ -1,0 +1,246 @@
+{
+  "$ref": "#/definitions/IJSONConfig",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "definitions": {
+    "IJSONConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "bqdataset": {
+          "type": "string"
+        },
+        "bqkeyfile": {
+          "type": "string"
+        },
+        "bqproject": {
+          "type": "string"
+        },
+        "bqtable": {
+          "type": "string"
+        },
+        "cron": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "domain": {
+          "type": "string"
+        },
+        "filePath": {
+          "type": "string"
+        },
+        "fileUrl": {
+          "format": "uri",
+          "type": "string"
+        },
+        "filename": {
+          "type": "string"
+        },
+        "headerRow": {
+          "type": "number"
+        },
+        "httpsProxy": {
+          "type": "string"
+        },
+        "includeBlankColumns": {
+          "type": "boolean"
+        },
+        "ntlm": {
+          "type": "boolean"
+        },
+        "password": {
+          "type": "string"
+        },
+        "persistentErrorCooldown": {
+          "type": "number"
+        },
+        "retry": {
+          "type": "number"
+        },
+        "retryDelay": {
+          "type": "number"
+        },
+        "sharePointFolder": {
+          "format": "uri",
+          "type": "string"
+        },
+        "sheetNameOrIndex": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "sps2010": {
+          "type": "boolean"
+        },
+        "username": {
+          "type": "string"
+        },
+        "workbookConfig": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IJSONWorkbookConfig"
+            },
+            {
+              "items": {
+                "$ref": "#/definitions/IJSONWorkbookConfig"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          ],
+          "description": "Workbook/file level configuration(s)"
+        }
+      },
+      "required": [
+        "workbookConfig"
+      ],
+      "type": "object"
+    },
+    "IJSONWorkbookConfig": {
+      "additionalProperties": false,
+      "description": "Sheet level configuration(s)",
+      "properties": {
+        "bqdataset": {
+          "type": "string"
+        },
+        "bqkeyfile": {
+          "type": "string"
+        },
+        "bqproject": {
+          "type": "string"
+        },
+        "bqtable": {
+          "type": "string"
+        },
+        "cron": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          ]
+        },
+        "domain": {
+          "type": "string"
+        },
+        "filePath": {
+          "type": "string"
+        },
+        "fileUrl": {
+          "format": "uri",
+          "type": "string"
+        },
+        "filename": {
+          "type": "string"
+        },
+        "headerRow": {
+          "type": "number"
+        },
+        "httpsProxy": {
+          "type": "string"
+        },
+        "includeBlankColumns": {
+          "type": "boolean"
+        },
+        "ntlm": {
+          "type": "boolean"
+        },
+        "password": {
+          "type": "string"
+        },
+        "persistentErrorCooldown": {
+          "type": "number"
+        },
+        "retry": {
+          "type": "number"
+        },
+        "retryDelay": {
+          "type": "number"
+        },
+        "sharePointFolder": {
+          "format": "uri",
+          "type": "string"
+        },
+        "sheetConfig": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ISharedSheetConfig"
+            },
+            {
+              "items": {
+                "$ref": "#/definitions/ISharedSheetConfig"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          ]
+        },
+        "sps2010": {
+          "type": "boolean"
+        },
+        "username": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sheetConfig"
+      ],
+      "type": "object"
+    },
+    "ISharedSheetConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "bqdataset": {
+          "type": "string"
+        },
+        "bqkeyfile": {
+          "type": "string"
+        },
+        "bqproject": {
+          "type": "string"
+        },
+        "bqtable": {
+          "type": "string"
+        },
+        "headerRow": {
+          "type": "number"
+        },
+        "includeBlankColumns": {
+          "type": "boolean"
+        },
+        "persistentErrorCooldown": {
+          "type": "number"
+        },
+        "retry": {
+          "type": "number"
+        },
+        "retryDelay": {
+          "type": "number"
+        },
+        "sheetNameOrIndex": {
+          "type": [
+            "string",
+            "number"
+          ]
+        }
+      },
+      "type": "object"
+    }
+  }
+}

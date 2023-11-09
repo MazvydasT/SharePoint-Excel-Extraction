@@ -8,7 +8,8 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Cache } from 'cache-manager';
-import { from, toArray } from 'ix/iterable';
+import { parseExpression } from 'cron-parser';
+import { first, from, toArray } from 'ix/iterable';
 import { flatMap, groupBy, map as mapIx, orderBy } from 'ix/iterable/operators';
 import moment from 'moment';
 import {
@@ -358,15 +359,17 @@ async function bootstrap() {
 			continue;
 		}
 
-		const cron = configurationService.cron;
+		const nextExtractionStart = first(
+			from(configurationService.cron).pipe(
+				mapIx(cronExpression => parseExpression(cronExpression).next().toDate()),
+				orderBy(date => date.getTime()),
+				mapIx(date => moment(date))
+			)
+		);
 
-		if (!cron) break;
+		if (!nextExtractionStart) break;
 
 		const now = moment();
-
-		cron.reset(now.toDate());
-
-		const nextExtractionStart = moment(cron.next().value.toDate());
 		const msToStartAnotherExtraction = Math.max(nextExtractionStart.diff(now), 0);
 
 		logger.log(

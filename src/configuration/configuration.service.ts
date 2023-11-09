@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Command, InvalidArgumentError, Option } from 'commander';
-import { CronExpression, parseExpression } from 'cron-parser';
+import { parseExpression } from 'cron-parser';
 import { config } from 'dotenv';
+import { from, toArray } from 'ix/iterable';
+import { filter, map } from 'ix/iterable/operators';
 import { parseIntClamp } from '../utils';
 
 @Injectable()
@@ -26,6 +28,8 @@ export class ConfigurationService {
 		const sharePointFolderOption = `--share-point-folder`;
 		const fileURLOption = `--file-url`;
 		const filePathOption = `--file-path`;
+
+		const cronExpressions = new Array<string>();
 
 		const command = new Command()
 			.addOption(envOption)
@@ -87,14 +91,12 @@ export class ConfigurationService {
 			.addOption(new Option(`--include-blank-columns`).env(`INCLUDE_BLANK_COLUMNS`).default(false))
 
 			.addOption(
-				new Option(`-u, --username <string>`, `SharePoint username`)
-					.env(`USERNAME`)
-					.makeOptionMandatory(true)
+				new Option(`-u, --username <string>`, `SharePoint username`).env(`USERNAME`)
+				//.makeOptionMandatory(true)
 			)
 			.addOption(
-				new Option(`-p, --password <string>`, `SharePoint password`)
-					.env(`PASSWORD`)
-					.makeOptionMandatory(true)
+				new Option(`-p, --password <string>`, `SharePoint password`).env(`PASSWORD`)
+				//.makeOptionMandatory(true)
 			)
 
 			.addOption(new Option(`--https-proxy <string>`, `HTTP proxy`).env(`HTTPS_PROXY`))
@@ -135,36 +137,42 @@ export class ConfigurationService {
 			)
 
 			.addOption(
-				new Option(`--cron <expression>`, `Cron expression to schedule extraction`)
+				new Option(`--cron <expressions...>`, `Cron expressions to schedule extraction`)
 					.env(`CRON`)
+					.default([])
 					.argParser(value => {
 						try {
-							return !value ? undefined : parseExpression(value, { iterator: true });
-						} catch (_) {
-							throw new InvalidArgumentError(``);
+							cronExpressions.push(
+								...toArray(
+									from(value.trim().split(`\n`)).pipe(
+										map(value => value.trim()),
+										filter(value => value.length > 0 && !!parseExpression(value))
+									)
+								)
+							);
+
+							return toArray(new Set(cronExpressions));
+						} catch (error) {
+							throw new InvalidArgumentError(error.message);
 						}
 					})
 			)
 
 			.addOption(
-				new Option(`--bqkeyfile <filepath>`, 'BigQuery key file')
-					.env(`BQKEYFILE`)
-					.makeOptionMandatory(true)
+				new Option(`--bqkeyfile <filepath>`, 'BigQuery key file').env(`BQKEYFILE`)
+				//.makeOptionMandatory(true)
 			)
 			.addOption(
-				new Option(`--bqproject <name>`, `BigQuery project name`)
-					.env(`BQPROJECT`)
-					.makeOptionMandatory(true)
+				new Option(`--bqproject <name>`, `BigQuery project name`).env(`BQPROJECT`)
+				//.makeOptionMandatory(true)
 			)
 			.addOption(
-				new Option(`--bqdataset <name>`, `BigQuery dataset name`)
-					.env(`BQDATASET`)
-					.makeOptionMandatory(true)
+				new Option(`--bqdataset <name>`, `BigQuery dataset name`).env(`BQDATASET`)
+				//.makeOptionMandatory(true)
 			)
 			.addOption(
-				new Option(`--bqtable <name>`, `BigQuery table name`)
-					.env(`BQTABLE`)
-					.makeOptionMandatory(true)
+				new Option(`--bqtable <name>`, `BigQuery table name`).env(`BQTABLE`)
+				//.makeOptionMandatory(true)
 			)
 
 			.showHelpAfterError(true)
@@ -197,7 +205,8 @@ export class ConfigurationService {
 
 			persistentErrorCooldown: number;
 
-			cron?: CronExpression<true>;
+			//cron?: CronExpression<true>;
+			cron: string[];
 
 			bqkeyfile: string;
 			bqproject: string;
