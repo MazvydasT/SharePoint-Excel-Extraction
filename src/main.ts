@@ -189,7 +189,7 @@ async function bootstrap() {
 												index
 											};
 										}),
-										groupBy(columnInfo => columnInfo.name),
+										groupBy(columnInfo => columnInfo.name.toUpperCase()),
 										flatMap(columnInfoGroup =>
 											columnInfoGroup.pipe(
 												mapIx(({ name, index }, inGroupIndex) => ({
