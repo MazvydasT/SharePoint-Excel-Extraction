@@ -10,6 +10,7 @@ import { ConfigurationService } from '../configuration/configuration.service';
 import { SharePointAuthService } from '../sharepoint-auth/sharepoint-auth.service';
 import { IRESTOptions } from './IRESTOptions';
 import { ISharePointFileByURLData } from './ISharePointFileByURLData';
+import { ISharePointFileData } from './ISharePointFileData';
 import { ISharePointFilesData } from './ISharePointFilesData';
 
 export enum Order {
@@ -35,7 +36,9 @@ export class SharePointService {
 			.pipe(
 				mergeMap(authResponse => {
 					const requestConfig: AxiosRequestConfig = {
+						method: `GET`,
 						...config,
+						url: url.href,
 						headers: {
 							...config.headers,
 							...authResponse.headers
@@ -63,7 +66,7 @@ export class SharePointService {
 						) as any as HttpService;
 					}
 
-					return httpServiceReference.get<T>(url.href, requestConfig);
+					return httpServiceReference.request<T>(requestConfig);
 				})
 			);
 	}
@@ -78,15 +81,27 @@ export class SharePointService {
 	getFileByURL(fileURL: URL) {
 		const site = this.getSite(fileURL);
 
-		const filesRequestURL = new URL(
-			`${fileURL.origin}${site}_api/web/GetFileByUrl('${encodeURI(fileURL.pathname)}')`
-		);
+		const isSPS2010 = !!this.configurationService.sps2010;
+
+		const filesRequestURL = isSPS2010
+			? fileURL
+			: new URL(`${fileURL.origin}${site}_api/web/GetFileByUrl('${encodeURI(fileURL.pathname)}')`);
 
 		return this.getRequest<ISharePointFileByURLData>(filesRequestURL, {
+			method: isSPS2010 ? `HEAD` : `GET`,
 			headers: { ...ACCEPT_JSON }
 		}).pipe(
 			map(response => {
-				return response.data.d;
+				const etag = response.headers[`etag`];
+
+				return isSPS2010
+					? ({
+							__metadata: {
+								etag,
+								media_src: fileURL.href
+							}
+					  } as ISharePointFileData)
+					: response.data.d;
 			})
 		);
 	}
