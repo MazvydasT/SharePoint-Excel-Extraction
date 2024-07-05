@@ -8,7 +8,7 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Cache } from 'cache-manager';
-import { from, toArray } from 'ix/Ix.iterable';
+import { from, range, toArray } from 'ix/Ix.iterable';
 import { flatMap, groupBy, map as mapIx, orderBy } from 'ix/Ix.iterable.operators';
 import moment from 'moment';
 import {
@@ -153,58 +153,65 @@ async function bootstrap() {
 									raw: true
 								});
 
-								const headerRowIndex = configurationService.headerRow;
+								const headerRow = configurationService.headerRow;
 
 								const usedRange = excelService.getUsedRange(worksheet);
+								const maxColumn = usedRange?.maxColumn ?? 0;
 
-								const header = toArray(
-									from(
-										Array.from({
-											...excelService
-												.getSheetData<string | null>(worksheet, {
-													header: 1,
-													range: worksheet['!ref']?.replace(/\d+/g, `${headerRowIndex + 1}`),
-													defval: null
-												})
-												.flat(1),
+								const header =
+									headerRow == 0
+										? toArray(range(1, maxColumn).pipe(mapIx(excelService.columnNumberToName)))
+										: toArray(
+												from(
+													Array.from({
+														...excelService
+															.getSheetData<string | null>(worksheet, {
+																header: 1,
+																range: worksheet['!ref']?.replace(
+																	/\d+/g,
+																	`${Math.max(headerRow, 1)}`
+																),
+																defval: null
+															})
+															.flat(1),
 
-											length: usedRange?.maxColumn
-										})
-									).pipe(
-										mapIx((columnName, index) => {
-											let trimmedColumnName = `${columnName ?? ``}`.trim();
+														length: maxColumn
+													})
+												).pipe(
+													mapIx((columnName, index) => {
+														let trimmedColumnName = `${columnName ?? ``}`.trim();
 
-											if (trimmedColumnName.replace(nonAlphaNumericRegExp, ``).length == 0)
-												trimmedColumnName = ``;
+														if (trimmedColumnName.replace(nonAlphaNumericRegExp, ``).length == 0)
+															trimmedColumnName = ``;
 
-											if (numericStartRegExp.test(trimmedColumnName))
-												trimmedColumnName = `_` + trimmedColumnName;
+														if (numericStartRegExp.test(trimmedColumnName))
+															trimmedColumnName = `_` + trimmedColumnName;
 
-											return {
-												name:
-													trimmedColumnName.length > 0
-														? trimmedColumnName
-														: `BLANK (${excelService.columnNumberToName(index + 1)})`,
-												index
-											};
-										}),
-										groupBy(columnInfo => columnInfo.name.toUpperCase()),
-										flatMap(columnInfoGroup =>
-											columnInfoGroup.pipe(
-												mapIx(({ name, index }, inGroupIndex) => ({
-													name: name + (inGroupIndex > 0 ? `_${inGroupIndex}` : ``),
-													index
-												}))
-											)
-										),
-										orderBy(({ index }) => index),
-										mapIx(({ name }) => name)
-									)
-								);
+														return {
+															name:
+																trimmedColumnName.length > 0
+																	? trimmedColumnName
+																	: `BLANK (${excelService.columnNumberToName(index + 1)})`,
+															index
+														};
+													}),
+													groupBy(columnInfo => columnInfo.name.toUpperCase()),
+													flatMap(columnInfoGroup =>
+														columnInfoGroup.pipe(
+															mapIx(({ name, index }, inGroupIndex) => ({
+																name: name + (inGroupIndex > 0 ? `_${inGroupIndex}` : ``),
+																index
+															}))
+														)
+													),
+													orderBy(({ index }) => index),
+													mapIx(({ name }) => name)
+												)
+										  );
 
 								const dataRows = excelService.getSheetData<any>(worksheet, {
 									header,
-									range: `A${headerRowIndex + 2}:${usedRange?.maxColumnName}${usedRange?.maxRow}`,
+									range: `A${headerRow + 1}:${usedRange?.maxColumnName}${usedRange?.maxRow}`,
 									...(configurationService.includeBlankColumns ? { defval: null } : {})
 								});
 
