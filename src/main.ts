@@ -8,8 +8,8 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Cache } from 'cache-manager';
-import { from, toArray } from 'ix/iterable';
-import { flatMap, groupBy, map as mapIx, orderBy } from 'ix/iterable/operators';
+import { from, toArray } from 'ix/Ix.iterable';
+import { flatMap, groupBy, map as mapIx, orderBy } from 'ix/Ix.iterable.operators';
 import moment from 'moment';
 import {
 	EMPTY,

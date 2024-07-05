@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { glob } from 'fast-glob';
 import { readFile } from 'fs/promises';
-import { first, from as ixFrom } from 'ix/iterable';
-import { orderByDescending } from 'ix/iterable/operators';
+import { first, from as ixFrom } from 'ix/Ix.iterable';
+import { orderByDescending } from 'ix/Ix.iterable.operators';
 import { from, map } from 'rxjs';
 
 @Injectable()
