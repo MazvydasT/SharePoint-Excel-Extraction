@@ -83,6 +83,17 @@ export class ConfigurationService {
 						}
 					})
 			)
+			.addOption(
+				new Option(`-d, --data-row <number>`, `First data row number`)
+					.env(`DATA_ROW`)
+					.argParser(value => {
+						try {
+							return parseIntClamp(value, { min: 1 });
+						} catch (_) {
+							throw new InvalidArgumentError(``);
+						}
+					})
+			)
 
 			.addOption(new Option(`--include-blank-columns`).env(`INCLUDE_BLANK_COLUMNS`).default(false))
 
@@ -184,6 +195,7 @@ export class ConfigurationService {
 
 			sheet: string | number;
 			headerRow: number;
+			dataRow?: number;
 
 			includeBlankColumns: boolean;
 
@@ -251,6 +263,10 @@ export class ConfigurationService {
 	}
 	get headerRow() {
 		return this.optionValues.headerRow;
+	}
+
+	get dataRow() {
+		return this.optionValues.dataRow;
 	}
 
 	get includeBlankColumns() {

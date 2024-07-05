@@ -209,9 +209,13 @@ async function bootstrap() {
 												)
 										  );
 
+								const dataRowNumber = configurationService.dataRow;
+
 								const dataRows = excelService.getSheetData<any>(worksheet, {
 									header,
-									range: `A${headerRow + 1}:${usedRange?.maxColumnName}${usedRange?.maxRow}`,
+									range: `A${
+										!!dataRowNumber ? dataRowNumber : headerRow + 1
+									}:${usedRange?.maxColumnName}${usedRange?.maxRow}`,
 									...(configurationService.includeBlankColumns ? { defval: null } : {})
 								});
 
