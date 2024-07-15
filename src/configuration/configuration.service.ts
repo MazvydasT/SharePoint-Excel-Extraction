@@ -27,6 +27,9 @@ export class ConfigurationService {
 		const fileURLOption = `--file-url`;
 		const filePathOption = `--file-path`;
 
+		const multipleFilesOption = `--multiple-files`;
+		const bqTableOption = `--bqtable`;
+
 		const command = new Command()
 			.addOption(envOption)
 
@@ -93,6 +96,15 @@ export class ConfigurationService {
 							throw new InvalidArgumentError(``);
 						}
 					})
+			)
+
+			.addOption(
+				new Option(
+					`-m, ${multipleFilesOption}`,
+					`Multiple files get extracted into multiple tables`
+				)
+					.env(`MULTIPLE_FILES`)
+					.default(false)
 			)
 
 			.addOption(new Option(`--include-blank-columns`).env(`INCLUDE_BLANK_COLUMNS`).default(false))
@@ -173,9 +185,8 @@ export class ConfigurationService {
 					.makeOptionMandatory(true)
 			)
 			.addOption(
-				new Option(`--bqtable <name>`, `BigQuery table name`)
-					.env(`BQTABLE`)
-					.makeOptionMandatory(true)
+				new Option(`${bqTableOption} <name>`, `BigQuery table name`).env(`BQTABLE`)
+				//.makeOptionMandatory(true)
 			)
 
 			.showHelpAfterError(true)
@@ -197,6 +208,7 @@ export class ConfigurationService {
 			headerRow: number;
 			dataRow?: number;
 
+			multipleFiles: boolean;
 			includeBlankColumns: boolean;
 
 			username: string;
@@ -214,7 +226,7 @@ export class ConfigurationService {
 			bqkeyfile: string;
 			bqproject: string;
 			bqdataset: string;
-			bqtable: string;
+			bqtable?: string;
 		}>();
 
 		if (
@@ -226,6 +238,11 @@ export class ConfigurationService {
 					fileURLOption,
 					filePathOption
 				].join(', ')}`
+			);
+
+		if ([options.multipleFiles, !!options.bqtable].filter(v => v).length != 1)
+			command.error(
+				`One and only one of the following must be set: ${[multipleFilesOption, bqTableOption].join(', ')}`
 			);
 
 		return Object.freeze(options);
@@ -267,6 +284,10 @@ export class ConfigurationService {
 
 	get dataRow() {
 		return this.optionValues.dataRow;
+	}
+
+	get multipleFiles() {
+		return this.optionValues.multipleFiles;
 	}
 
 	get includeBlankColumns() {

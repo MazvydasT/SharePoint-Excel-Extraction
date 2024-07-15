@@ -3,9 +3,9 @@ import { Injectable } from '@nestjs/common';
 import { AxiosRequestConfig } from 'axios';
 import { NtlmClient } from 'axios-ntlm';
 import { Agent } from 'https';
-import { from, toArray } from 'ix/Ix.iterable';
-import { map as mapIx } from 'ix/Ix.iterable.operators';
-import { map, mergeMap } from 'rxjs';
+import { from as ixFrom, toArray } from 'ix/Ix.iterable';
+import { map as mapIx, take } from 'ix/Ix.iterable.operators';
+import { from, map, mergeMap } from 'rxjs';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { SharePointAuthService } from '../sharepoint-auth/sharepoint-auth.service';
 import { IRESTOptions } from './IRESTOptions';
@@ -100,9 +100,10 @@ export class SharePointService {
 								etag,
 								media_src: fileURL.href
 							}
-					  } as ISharePointFileData)
+						} as ISharePointFileData)
 					: response.data.d;
-			})
+			}),
+			map(fileData => ({ fileData, index: 0, count: 1 }))
 		);
 	}
 
@@ -138,7 +139,7 @@ export class SharePointService {
 				searchParams.set(
 					`$orderby`,
 					toArray(
-						from(restOptions.orderby).pipe(
+						ixFrom(restOptions.orderby).pipe(
 							mapIx(item => `${item.field} ${item.order ? Order[item.order] : ''}`.trim())
 						)
 					).join(`,`)
@@ -166,17 +167,19 @@ export class SharePointService {
 		);
 	}
 
-	getLastAddedFileDataFromFolder(folderURL: URL, filter?: string) {
+	getFilesDataFromFolder(folderURL: URL, getMostRecentlyEditedFileOnly: boolean, filter?: string) {
 		return this.getFilesInFolder<ISharePointFilesData>(folderURL, {
 			filter,
 			...(!!this.configurationService.sps2010 ? {} : { select: [`ETag`] }),
-			orderby: [
-				{
-					field: !!this.configurationService.sps2010 ? `Created` : `TimeCreated`,
-					order: Order.desc
-				}
-			],
-			top: 1
+			orderby: getMostRecentlyEditedFileOnly
+				? [
+						{
+							field: !!this.configurationService.sps2010 ? `Created` : `TimeCreated`,
+							order: Order.desc
+						}
+					]
+				: undefined,
+			top: getMostRecentlyEditedFileOnly ? 1 : undefined
 		}).pipe(
 			map(filesData => {
 				if (Array.isArray(filesData.d)) {
@@ -186,8 +189,15 @@ export class SharePointService {
 				return filesData;
 			}),
 			map(filesData => {
-				return filesData.d.results.shift();
-			})
+				const count = filesData.d.results.length;
+
+				return ixFrom(
+					getMostRecentlyEditedFileOnly
+						? ixFrom(filesData.d.results).pipe(take(1))
+						: filesData.d.results
+				).pipe(mapIx((fileData, index) => ({ fileData, index, count })));
+			}),
+			mergeMap(filesData => from(filesData))
 		);
 	}
 }

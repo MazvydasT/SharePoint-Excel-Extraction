@@ -18,7 +18,11 @@ export class OutputService {
 		});
 	}
 
-	outputToBigQuery(items: IterableX<any>, schema?: TableSchema) {
-		return this.bigQueryService.write(this.itemsArrayToReadable(items[Symbol.iterator]()), schema);
+	outputToBigQuery(items: IterableX<any>, bigQueryTableName: string, schema?: TableSchema) {
+		return this.bigQueryService.write(
+			this.itemsArrayToReadable(items[Symbol.iterator]()),
+			bigQueryTableName,
+			schema
+		);
 	}
 }

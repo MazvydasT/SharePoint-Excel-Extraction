@@ -1,18 +1,38 @@
 import { Injectable } from '@nestjs/common';
 import { glob } from 'fast-glob';
 import { readFile } from 'fs/promises';
-import { first, from as ixFrom } from 'ix/Ix.iterable';
-import { orderByDescending } from 'ix/Ix.iterable.operators';
-import { from, map } from 'rxjs';
+import { from as ixFrom } from 'ix/Ix.iterable';
+import { map as ixMap, orderByDescending, take } from 'ix/Ix.iterable.operators';
+import { from, map, mergeMap } from 'rxjs';
 
 @Injectable()
 export class FileSystemService {
-	getFileInfo(filePath: string) {
+	getFileInfo(filePath: string, getMostRecentlyEditedFileOnly: boolean) {
 		return from(
 			glob(filePath, {
 				stats: true
 			})
-		).pipe(map(paths => first(ixFrom(paths).pipe(orderByDescending(path => path.stats?.mtimeMs)))));
+		).pipe(
+			map(entries => {
+				const count = entries.length;
+
+				return ixFrom(
+					getMostRecentlyEditedFileOnly
+						? ixFrom(entries).pipe(
+								orderByDescending(entries => entries.stats?.mtimeMs),
+								take(1)
+							)
+						: entries
+				).pipe(
+					ixMap((entry, index) => ({
+						entry,
+						index,
+						count
+					}))
+				);
+			}),
+			mergeMap(entries => from(entries))
+		);
 	}
 
 	getFileContent(filePath: string) {

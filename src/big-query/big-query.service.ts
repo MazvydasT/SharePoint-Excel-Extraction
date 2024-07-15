@@ -8,18 +8,18 @@ import { ConfigurationService } from '../configuration/configuration.service';
 export class BigQueryService {
 	constructor(private configurationService: ConfigurationService) {}
 
-	private bigQueryTable = new BigQuery({
+	private bigQueryDataset = new BigQuery({
 		projectId: this.configurationService.bigQueryProject,
 		keyFilename: this.configurationService.bigQueryKeyFilename
-	})
-		.dataset(this.configurationService.bigQueryDataset)
-		.table(this.configurationService.bigQueryTable);
+	}).dataset(this.configurationService.bigQueryDataset);
 
-	write(readable: Readable, schema?: TableSchema) {
+	write(readable: Readable, bigQueryTableName: string, schema?: TableSchema) {
+		const bigQueryTable = this.bigQueryDataset.table(bigQueryTableName);
+
 		return new Observable<Job>(subscriber => {
 			readable
 				.pipe(
-					this.bigQueryTable.createWriteStream({
+					bigQueryTable.createWriteStream({
 						sourceFormat: `NEWLINE_DELIMITED_JSON`,
 						writeDisposition: `WRITE_TRUNCATE`,
 						autodetect: !schema,

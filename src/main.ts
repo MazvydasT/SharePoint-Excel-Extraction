@@ -8,18 +8,21 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Cache } from 'cache-manager';
-import { from, range, toArray } from 'ix/Ix.iterable';
+import { from, last, range, toArray } from 'ix/Ix.iterable';
 import { flatMap, groupBy, map as mapIx, orderBy } from 'ix/Ix.iterable.operators';
 import moment from 'moment';
+import { parse } from 'path';
 import {
 	EMPTY,
 	RetryConfig,
+	catchError,
+	concatAll,
 	firstValueFrom,
+	lastValueFrom,
 	map,
 	mergeMap,
 	of,
 	retry,
-	switchAll,
 	tap,
 	timer
 } from 'rxjs';
@@ -50,7 +53,7 @@ async function bootstrap() {
 
 	const nonAlphaNumericRegExp = /[^A-Z0-9]/gi;
 	const nonAlphaNumericStartRegExp = /^[^A-Z0-9]+/gi;
-	const nonAlphaNumericStarOnlyBeforeLettersRegExp = /^[^A-Z0-9]+(?=[A-Z])/gi;
+	const nonAlphaNumericStartOnlyBeforeLettersRegExp = /^[^A-Z0-9]+(?=[A-Z])/gi;
 	const nonAlphaNumericEndRegExp = /[^A-Z0-9]+$/gi;
 	const numericStartRegExp = /^\d.*$/;
 
@@ -73,10 +76,10 @@ async function bootstrap() {
 	const nameFilter = !fileName
 		? undefined
 		: startsWithStar
-		? `${substringFunctionName}('${fileNameWithoutStars}',${nameColumn})`
-		: !startsWithStar && !endsWithStar
-		? `${nameColumn} eq '${fileNameWithoutStars}'`
-		: `${startsWithFunctionName}(${nameColumn},'${fileNameWithoutStars}')`;
+			? `${substringFunctionName}('${fileNameWithoutStars}',${nameColumn})`
+			: !startsWithStar && !endsWithStar
+				? `${nameColumn} eq '${fileNameWithoutStars}'`
+				: `${startsWithFunctionName}(${nameColumn},'${fileNameWithoutStars}')`;
 
 	const bigQueryDateTimeFormat = `YYYY-MM-DD HH:mm:ss`;
 
@@ -85,65 +88,89 @@ async function bootstrap() {
 
 		const extractionTime = moment().utc().format(bigQueryDateTimeFormat);
 
+		const getMostRecentlyEditedFileOnly = !configurationService.multipleFiles;
+
 		try {
-			await firstValueFrom(
+			await lastValueFrom(
 				(!!configurationService.filePath
-					? fileSystemService.getFileInfo(configurationService.filePath).pipe(
-							map(data => ({
-								etag: data?.stats?.mtime?.toISOString(),
-								uri: data?.path,
-								type: FileType.FileSystem
-							}))
-					  )
+					? fileSystemService
+							.getFileInfo(configurationService.filePath, getMostRecentlyEditedFileOnly)
+							.pipe(
+								map(({ entry, index, count }) => ({
+									etag: entry?.stats?.mtime?.toISOString(),
+									uri: entry?.path,
+									type: FileType.FileSystem,
+									index,
+									count
+								}))
+							)
 					: (!!configurationService.sharePointFolder
-							? sharePointService.getLastAddedFileDataFromFolder(
+							? sharePointService.getFilesDataFromFolder(
 									configurationService.sharePointFolder,
+									getMostRecentlyEditedFileOnly,
 									nameFilter
-							  )
+								)
 							: !!configurationService.fileURL
-							? sharePointService.getFileByURL(configurationService.fileURL)
-							: EMPTY
-					  ).pipe(
-							map(data => {
+								? sharePointService.getFileByURL(configurationService.fileURL)
+								: EMPTY
+						).pipe(
+							map(({ fileData, index, count }) => {
 								return {
-									etag: data?.ETag ?? data?.__metadata?.etag,
-									uri: data?.__metadata?.id ?? data?.__metadata?.media_src,
-									type: FileType.SharePoint
+									etag: fileData?.ETag ?? fileData?.__metadata?.etag,
+									uri: fileData?.__metadata?.id ?? fileData?.__metadata?.media_src,
+									type: FileType.SharePoint,
+									index,
+									count
 								};
 							})
-					  )
+						)
 				).pipe(
 					retry(retryConfig),
 					mergeMap(async fileData => {
+						const fileDataCountAsString = `${fileData.count}`;
+						const fileDataNumberAsString = `${fileData.index + 1}`.padStart(
+							fileDataCountAsString.length,
+							` `
+						);
+
+						const sequenceIdentifier = `${fileDataNumberAsString}/${fileDataCountAsString}`;
+
 						if (!fileData.uri) {
-							logger.warn(`No file(s) found`);
+							logger.warn(`${sequenceIdentifier} No file(s) found`);
 
 							return EMPTY;
 						}
 
-						const cachedETag =
-							(await cache.get<string>(
-								(configurationService.sharePointFolder ?? configurationService.fileURL)?.href ??
-									configurationService.filePath ??
-									``
-							)) ?? null;
+						const decodedURI =
+							fileData.type == FileType.SharePoint ? decodeURI(fileData.uri) : fileData.uri;
+
+						let currentlyExtractedFileName = last(decodedURI.split(/(?:\\|\/)/))!;
+						if (currentlyExtractedFileName.endsWith(`')`))
+							currentlyExtractedFileName = currentlyExtractedFileName.slice(
+								0,
+								currentlyExtractedFileName.length - 2
+							);
+
+						const cachedETag = (await cache.get<string>(fileData.uri)) ?? null;
 
 						if (cachedETag == fileData.etag) {
-							logger.log(`No changes`);
+							logger.log(`${sequenceIdentifier} No changes in ${currentlyExtractedFileName}`);
 
 							return EMPTY;
 						}
+
+						const sheetNumberOrName =
+							typeof configurationService.sheet == `number`
+								? `index ${configurationService.sheet}`
+								: `'${configurationService.sheet}'`;
 
 						return (
 							fileData.type == FileType.SharePoint
 								? sharePointService.getFileContent(
 										new URL(`${fileData.uri}${!!configurationService.sps2010 ? '' : '//$value'}`)
-								  )
-								: // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-								  fileSystemService.getFileContent(fileData.uri)
+									)
+								: fileSystemService.getFileContent(fileData.uri)
 						).pipe(
-							retry(retryConfig),
-
 							mergeMap(excelFile => {
 								const worksheet = excelService.getSheet(excelFile, configurationService.sheet, {
 									cellFormula: false,
@@ -207,11 +234,11 @@ async function bootstrap() {
 													orderBy(({ index }) => index),
 													mapIx(({ name }) => name)
 												)
-										  );
+											);
 
 								const dataRowNumber = configurationService.dataRow;
 
-								const dataRows = excelService.getSheetData<any>(worksheet, {
+								const dataRows = excelService.getSheetData<Record<string, any>>(worksheet, {
 									header,
 									range: `A${
 										!!dataRowNumber ? dataRowNumber : headerRow + 1
@@ -222,18 +249,24 @@ async function bootstrap() {
 								return of(dataRows);
 							}),
 							retry(retryConfig),
-							tap(() =>
+							catchError((err, caught) => {
+								if (configurationService.multipleFiles) {
+									logger.warn(
+										`${sequenceIdentifier} Extraction failed for sheet ${sheetNumberOrName} in file\n${fileData.uri}\n\nwith following error:\n${err}`
+									);
+
+									return EMPTY;
+								} else return caught;
+							}),
+							tap(() => {
 								logger.log(
-									`Sheet ${
-										typeof configurationService.sheet == `number`
-											? `index ${configurationService.sheet}`
-											: `'${configurationService.sheet}'`
-									} data extracted`
-								)
-							),
+									`${sequenceIdentifier} Data extracted from sheet ${sheetNumberOrName} in '${currentlyExtractedFileName}'`
+								);
+							}),
 
 							map(dataRows => {
 								const extractionTimeFieldName = `ExtractionTime`;
+
 								const stringType = `STRING`;
 								const integerType = `INTEGER`;
 								const floatType = `FLOAT`;
@@ -262,7 +295,7 @@ async function bootstrap() {
 												const newKey = key
 													.replaceAll(nonAlphaNumericRegExp, `_`)
 													.replaceAll(nonAlphaNumericStartRegExp, `_`)
-													.replaceAll(nonAlphaNumericStarOnlyBeforeLettersRegExp, ``)
+													.replaceAll(nonAlphaNumericStartOnlyBeforeLettersRegExp, ``)
 													.replaceAll(nonAlphaNumericEndRegExp, ``);
 
 												let fieldType = fieldTypes.get(newKey);
@@ -314,14 +347,14 @@ async function bootstrap() {
 												type: type.STRING
 													? stringType
 													: type.TIMESTAMP && (type.FLOAT || type.INTEGER)
-													? stringType
-													: type.TIMESTAMP
-													? timestampType
-													: type.FLOAT
-													? floatType
-													: type.INTEGER
-													? integerType
-													: stringType
+														? stringType
+														: type.TIMESTAMP
+															? timestampType
+															: type.FLOAT
+																? floatType
+																: type.INTEGER
+																	? integerType
+																	: stringType
 											}))
 										)
 									)
@@ -334,23 +367,27 @@ async function bootstrap() {
 							}),
 
 							mergeMap(({ dataRows, schema }) => {
-								logger.log(`Writing data to BigQuery`);
-								return outputService.outputToBigQuery(dataRows, schema);
+								logger.log(
+									`${sequenceIdentifier} Writing sheet ${sheetNumberOrName} in '${currentlyExtractedFileName}' data to BigQuery`
+								);
+
+								const bigQueryTableName = !!configurationService.bigQueryTable
+									? configurationService.bigQueryTable
+									: parse(currentlyExtractedFileName).name.replaceAll(nonAlphaNumericRegExp, `_`);
+
+								return outputService.outputToBigQuery(dataRows, bigQueryTableName, schema);
 							}),
 							retry(retryConfig),
 							tap(() => {
-								logger.log(`Data written to BigQuery`);
-
-								cache.set(
-									(configurationService.sharePointFolder ?? configurationService.fileURL)?.href ??
-										configurationService.filePath ??
-										``,
-									fileData.etag
+								logger.log(
+									`${sequenceIdentifier} Sheet ${sheetNumberOrName} in '${currentlyExtractedFileName}' data written to BigQuery`
 								);
+
+								cache.set(fileData.uri, fileData.etag);
 							})
 						);
 					}),
-					switchAll()
+					concatAll()
 				),
 				{ defaultValue: null }
 			);
