@@ -1,6 +1,6 @@
 import { TableSchema } from '@google-cloud/bigquery';
 import { Injectable } from '@nestjs/common';
-import { IterableX } from 'ix/Ix.iterable';
+import { IterableX } from 'ix/iterable';
 import { Readable } from 'stream';
 import { BigQueryService } from '../big-query/big-query.service';
 
