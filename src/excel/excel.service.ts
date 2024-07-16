@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { ParsingOptions, read, Sheet2JSONOpts, utils, WorkSheet } from 'xlsx';
 
+const ADDRESS_REG_EXP = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/;
+
 @Injectable()
 export class ExcelService {
 	getSheet(excelFile: Buffer, sheetNameOrIndex: string | number, parsingOptions?: ParsingOptions) {
 		const workbook = read(excelFile, {
 			...parsingOptions,
+			dense: true,
 			sheets: [sheetNameOrIndex]
 		});
 
@@ -46,46 +49,27 @@ export class ExcelService {
 	}
 
 	getUsedRange(worksheet: WorkSheet) {
-		let minRow = Number.MAX_SAFE_INTEGER;
-		let minColumn = Number.MAX_SAFE_INTEGER;
-		let minColumnName = ``;
+		const refPropertyName = '!ref';
 
-		let maxRow = 0;
-		let maxColumn = 0;
-		let maxColumnName = ``;
+		const ref = worksheet[refPropertyName];
 
-		const cellAddressRegExp = /^([A-Z]+)(\d+)$/;
+		if (!ref)
+			throw new ReferenceError(`'worksheet' object does not have a '${refPropertyName}' property`);
 
-		for (const [key] of Object.entries(worksheet)) {
-			const [, columnName, row] = cellAddressRegExp.exec(key) ?? [undefined, undefined, undefined];
+		if (!ADDRESS_REG_EXP.test(ref))
+			throw new SyntaxError(
+				`${refPropertyName} property has value of '${ref}' which is not expected`
+			);
 
-			if (!columnName || !row) continue;
+		const [, minColumnName, minRowStr, maxColumnName, maxRowStr] = ADDRESS_REG_EXP.exec(ref)!;
 
-			const columnNumber = this.columnNameToNumber(columnName);
-			const rowNumber = parseInt(row);
-
-			if (rowNumber < minRow) minRow = rowNumber;
-			if (columnNumber < minColumn) {
-				minColumn = columnNumber;
-				minColumnName = columnName;
-			}
-
-			if (rowNumber > maxRow) maxRow = rowNumber;
-			if (columnNumber > maxColumn) {
-				maxColumn = columnNumber;
-				maxColumnName = columnName;
-			}
-		}
-
-		return maxRow == 0
-			? null
-			: {
-					minRow,
-					minColumn,
-					maxRow,
-					maxColumn,
-					minColumnName,
-					maxColumnName
-			  };
+		return {
+			minRow: parseInt(minRowStr),
+			minColumn: this.columnNameToNumber(minColumnName),
+			maxRow: parseInt(maxRowStr),
+			maxColumn: this.columnNameToNumber(maxColumnName),
+			minColumnName,
+			maxColumnName
+		};
 	}
 }
