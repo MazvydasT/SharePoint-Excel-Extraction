@@ -172,6 +172,11 @@ async function bootstrap() {
 									)
 								: fileSystemService.getFileContent(fileData.uri)
 						).pipe(
+							tap(() =>
+								logger.log(
+									`${sequenceIdentifier} Extracting sheet ${sheetNumberOrName} from '${currentlyExtractedFileName}'`
+								)
+							),
 							mergeMap(excelFile => {
 								const worksheet = excelService.getSheet(excelFile, configurationService.sheet, {
 									cellFormula: false,
@@ -256,17 +261,13 @@ async function bootstrap() {
 							retry(retryConfig),
 							catchError(err => {
 								if (configurationService.multipleFiles) {
-									logger.warn(
-										`${sequenceIdentifier} Extraction failed for sheet ${sheetNumberOrName} in file\n${fileData.uri}\n\nwith following error:\n${err}`
-									);
+									logger.warn(`${sequenceIdentifier} Extraction failed:\n${err}`);
 
 									return EMPTY;
 								} else return throwError(() => err);
 							}),
 							tap(() => {
-								logger.log(
-									`${sequenceIdentifier} Data extracted from sheet ${sheetNumberOrName} in '${currentlyExtractedFileName}'`
-								);
+								logger.log(`${sequenceIdentifier} Data extracted`);
 							}),
 
 							map(dataRows => {
@@ -372,9 +373,7 @@ async function bootstrap() {
 							}),
 
 							mergeMap(({ dataRows, schema }) => {
-								logger.log(
-									`${sequenceIdentifier} Writing sheet ${sheetNumberOrName} in '${currentlyExtractedFileName}' data to BigQuery`
-								);
+								logger.log(`${sequenceIdentifier} Writing data to BigQuery`);
 
 								const bigQueryTableName = !!configurationService.bigQueryTable
 									? configurationService.bigQueryTable
@@ -383,9 +382,7 @@ async function bootstrap() {
 								return outputService.outputToBigQuery(dataRows, bigQueryTableName, schema).pipe(
 									retry(retryConfig),
 									tap(() => {
-										logger.log(
-											`${sequenceIdentifier} Sheet ${sheetNumberOrName} in '${currentlyExtractedFileName}' data written to BigQuery`
-										);
+										logger.log(`${sequenceIdentifier} Data written to BigQuery`);
 
 										cache.set(fileData.uri, fileData.etag);
 									})
