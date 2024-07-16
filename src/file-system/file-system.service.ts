@@ -14,7 +14,7 @@ export class FileSystemService {
 			})
 		).pipe(
 			map(entries => {
-				const count = entries.length;
+				const count = getMostRecentlyEditedFileOnly ? 1 : entries.length;
 
 				return ixFrom(
 					getMostRecentlyEditedFileOnly
