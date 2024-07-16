@@ -3,7 +3,7 @@ import { glob } from 'fast-glob';
 import { readFile } from 'fs/promises';
 import { from as ixFrom } from 'ix/iterable';
 import { map as ixMap, orderByDescending, take } from 'ix/iterable/operators';
-import { from, map, mergeMap } from 'rxjs';
+import { defer, from, map, mergeMap } from 'rxjs';
 
 @Injectable()
 export class FileSystemService {
@@ -36,7 +36,7 @@ export class FileSystemService {
 	}
 
 	getFileContent(filePath: string) {
-		return from(
+		return defer(() =>
 			readFile(filePath, {
 				flag: `r`
 			})

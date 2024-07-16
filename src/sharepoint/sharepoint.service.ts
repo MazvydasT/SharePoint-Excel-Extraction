@@ -5,7 +5,7 @@ import { NtlmClient } from 'axios-ntlm';
 import { Agent } from 'https';
 import { from as ixFrom, toArray } from 'ix/iterable';
 import { map as mapIx, take } from 'ix/iterable/operators';
-import { from, map, mergeMap } from 'rxjs';
+import { defer, from, map, mergeMap } from 'rxjs';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { SharePointAuthService } from '../sharepoint-auth/sharepoint-auth.service';
 import { IRESTOptions } from './IRESTOptions';
@@ -158,12 +158,14 @@ export class SharePointService {
 	}
 
 	getFileContent(fileURL: URL) {
-		return this.getRequest<Buffer>(fileURL, {
-			responseType: 'arraybuffer'
-		}).pipe(
-			map(response => {
-				return response.data;
-			})
+		return defer(() =>
+			this.getRequest<Buffer>(fileURL, {
+				responseType: 'arraybuffer'
+			}).pipe(
+				map(response => {
+					return response.data;
+				})
+			)
 		);
 	}
 
