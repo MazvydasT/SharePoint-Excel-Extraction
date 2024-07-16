@@ -24,6 +24,7 @@ import {
 	of,
 	retry,
 	tap,
+	throwError,
 	timer
 } from 'rxjs';
 import { AppModule } from './app.module';
@@ -253,14 +254,14 @@ async function bootstrap() {
 								return of(dataRows);
 							}),
 							retry(retryConfig),
-							catchError((err, caught) => {
+							catchError(err => {
 								if (configurationService.multipleFiles) {
 									logger.warn(
 										`${sequenceIdentifier} Extraction failed for sheet ${sheetNumberOrName} in file\n${fileData.uri}\n\nwith following error:\n${err}`
 									);
 
 									return EMPTY;
-								} else return caught;
+								} else return throwError(() => err);
 							}),
 							tap(() => {
 								logger.log(
@@ -379,15 +380,16 @@ async function bootstrap() {
 									? configurationService.bigQueryTable
 									: parse(currentlyExtractedFileName).name.replaceAll(nonAlphaNumericRegExp, `_`);
 
-								return outputService.outputToBigQuery(dataRows, bigQueryTableName, schema);
-							}),
-							retry(retryConfig),
-							tap(() => {
-								logger.log(
-									`${sequenceIdentifier} Sheet ${sheetNumberOrName} in '${currentlyExtractedFileName}' data written to BigQuery`
-								);
+								return outputService.outputToBigQuery(dataRows, bigQueryTableName, schema).pipe(
+									retry(retryConfig),
+									tap(() => {
+										logger.log(
+											`${sequenceIdentifier} Sheet ${sheetNumberOrName} in '${currentlyExtractedFileName}' data written to BigQuery`
+										);
 
-								cache.set(fileData.uri, fileData.etag);
+										cache.set(fileData.uri, fileData.etag);
+									})
+								);
 							})
 						);
 					}),
