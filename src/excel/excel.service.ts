@@ -59,10 +59,14 @@ export class ExcelService {
 		let maxColumn = 0;
 
 		for (const rowData of data) {
+			if (!rowData) continue;
+
 			const columnIndices = Object.keys(rowData);
 			minColumn = Math.min(minColumn, parseInt(columnIndices[0]) + 1);
 			maxColumn = Math.max(maxColumn, parseInt(columnIndices[columnIndices.length - 1]) + 1);
 		}
+
+		if (maxColumn == 0) return null;
 
 		return {
 			minRow,
