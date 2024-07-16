@@ -1,8 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ParsingOptions, read, Sheet2JSONOpts, utils, WorkSheet } from 'xlsx';
 
-const ADDRESS_REG_EXP = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/;
-
 @Injectable()
 export class ExcelService {
 	getSheet(excelFile: Buffer, sheetNameOrIndex: string | number, parsingOptions?: ParsingOptions) {
@@ -49,27 +47,30 @@ export class ExcelService {
 	}
 
 	getUsedRange(worksheet: WorkSheet) {
-		const refPropertyName = '!ref';
+		const data = worksheet['!data'];
 
-		const ref = worksheet[refPropertyName];
+		if (!data) return null;
 
-		if (!ref)
-			throw new ReferenceError(`'worksheet' object does not have a '${refPropertyName}' property`);
+		const rowIndices = Object.keys(data);
+		const minRow = parseInt(rowIndices[0]) + 1;
+		const maxRow = parseInt(rowIndices[rowIndices.length - 1]) + 1;
 
-		if (!ADDRESS_REG_EXP.test(ref))
-			throw new SyntaxError(
-				`${refPropertyName} property has value of '${ref}' which is not expected`
-			);
+		let minColumn = Number.MAX_SAFE_INTEGER;
+		let maxColumn = 0;
 
-		const [, minColumnName, minRowStr, maxColumnName, maxRowStr] = ADDRESS_REG_EXP.exec(ref)!;
+		for (const rowData of data) {
+			const columnIndices = Object.keys(rowData);
+			minColumn = Math.min(minColumn, parseInt(columnIndices[0]) + 1);
+			maxColumn = Math.max(maxColumn, parseInt(columnIndices[columnIndices.length - 1]) + 1);
+		}
 
 		return {
-			minRow: parseInt(minRowStr),
-			minColumn: this.columnNameToNumber(minColumnName),
-			maxRow: parseInt(maxRowStr),
-			maxColumn: this.columnNameToNumber(maxColumnName),
-			minColumnName,
-			maxColumnName
+			minRow,
+			minColumn,
+			maxRow,
+			maxColumn,
+			minColumnName: this.columnNumberToName(minColumn),
+			maxColumnName: this.columnNumberToName(maxColumn)
 		};
 	}
 }

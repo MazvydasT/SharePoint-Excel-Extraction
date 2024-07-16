@@ -183,21 +183,25 @@ async function bootstrap() {
 								const headerRow = configurationService.headerRow;
 
 								const usedRange = excelService.getUsedRange(worksheet);
-								const maxColumn = usedRange?.maxColumn ?? 0;
+
+								if (!usedRange) return EMPTY;
+
+								const maxColumn = usedRange.maxColumn;
 
 								const header =
 									headerRow == 0
-										? toArray(range(1, maxColumn).pipe(mapIx(excelService.columnNumberToName)))
+										? toArray(
+												range(usedRange.minColumn, maxColumn).pipe(
+													mapIx(excelService.columnNumberToName)
+												)
+											)
 										: toArray(
 												from(
 													Array.from({
 														...excelService
 															.getSheetData<string | null>(worksheet, {
 																header: 1,
-																range: worksheet['!ref']?.replace(
-																	/\d+/g,
-																	`${Math.max(headerRow, 1)}`
-																),
+																range: `${usedRange.minColumnName}${headerRow}:${usedRange.maxColumnName}${headerRow}`,
 																defval: null
 															})
 															.flat(1),
@@ -240,9 +244,9 @@ async function bootstrap() {
 
 								const dataRows = excelService.getSheetData<Record<string, any>>(worksheet, {
 									header,
-									range: `A${
+									range: `${usedRange.minColumnName}${
 										!!dataRowNumber ? dataRowNumber : headerRow + 1
-									}:${usedRange?.maxColumnName}${usedRange?.maxRow}`,
+									}:${usedRange.maxColumnName}${usedRange.maxRow}`,
 									...(configurationService.includeBlankColumns ? { defval: null } : {})
 								});
 
