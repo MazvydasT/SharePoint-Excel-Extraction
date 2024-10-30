@@ -188,6 +188,20 @@ export class ConfigurationService {
 				new Option(`${bqTableOption} <name>`, `BigQuery table name`).env(`BQTABLE`)
 				//.makeOptionMandatory(true)
 			)
+			.addOption(
+				new Option(
+					`--bqtable-name-regexp <expression>`,
+					`RegExp to extract table name from file name`
+				)
+					.env(`BQTABLE_NAME_REGEXP`)
+					.argParser(value => {
+						try {
+							return !value ? undefined : new RegExp(value);
+						} catch (_) {
+							throw new InvalidArgumentError(``);
+						}
+					})
+			)
 
 			.showHelpAfterError(true)
 
@@ -227,6 +241,7 @@ export class ConfigurationService {
 			bqproject: string;
 			bqdataset: string;
 			bqtable?: string;
+			bqtableNameRegexp?: RegExp;
 		}>();
 
 		if (
@@ -331,5 +346,8 @@ export class ConfigurationService {
 	}
 	get bigQueryTable() {
 		return this.optionValues.bqtable;
+	}
+	get bqtableNameRegExp() {
+		return this.optionValues.bqtableNameRegexp;
 	}
 }

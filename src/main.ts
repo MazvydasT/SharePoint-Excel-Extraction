@@ -375,9 +375,18 @@ async function bootstrap() {
 							mergeMap(({ dataRows, schema }) => {
 								logger.log(`${sequenceIdentifier} Writing data to BigQuery`);
 
+								const matches = configurationService.bqtableNameRegExp?.exec(
+									currentlyExtractedFileName
+								);
+								const bqTableNameFromRegExp =
+									!!matches && matches.length > 1 ? matches[1] : matches?.[0];
+
 								const bigQueryTableName = !!configurationService.bigQueryTable
 									? configurationService.bigQueryTable
-									: parse(currentlyExtractedFileName).name.replaceAll(nonAlphaNumericRegExp, `_`);
+									: (bqTableNameFromRegExp ?? parse(currentlyExtractedFileName).name).replaceAll(
+											nonAlphaNumericRegExp,
+											`_`
+										);
 
 								return outputService.outputToBigQuery(dataRows, bigQueryTableName, schema).pipe(
 									retry(retryConfig),
