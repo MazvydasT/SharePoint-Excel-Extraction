@@ -4,10 +4,9 @@
 process.env.GLOBAL_AGENT_FORCE_GLOBAL_AGENT = `false`;
 
 import { TableSchema } from '@google-cloud/bigquery';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { Cache } from 'cache-manager';
+import { createCache } from 'cache-manager';
 import { from, last, range, toArray } from 'ix/iterable';
 import { flatMap, groupBy, map as mapIx, orderBy } from 'ix/iterable/operators';
 import moment from 'moment';
@@ -48,7 +47,7 @@ async function bootstrap() {
 	const fileSystemService = app.get(FileSystemService);
 	const excelService = app.get(ExcelService);
 	const outputService = app.get(OutputService);
-	const cache = app.get<Cache>(CACHE_MANAGER);
+	const cache = createCache({ ttl: 0 });
 
 	const logger = new Logger(`main`);
 
