@@ -1,11 +1,12 @@
+import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
 import { ConfigurationModule } from '../configuration/configuration.module';
-import { ConfigurationService } from '../configuration/configuration.service';
+import { PuppeteerModule } from '../puppeteer/puppeteer.module';
 import { SharePointAuthService } from './sharepoint-auth.service';
 
 @Module({
-	imports: [ConfigurationModule],
-	providers: [SharePointAuthService, ConfigurationService],
+	imports: [ConfigurationModule, PuppeteerModule, CacheModule.register()],
+	providers: [SharePointAuthService],
 	exports: [SharePointAuthService]
 })
 export class SharePointAuthModule {}

@@ -1,8 +1,3 @@
-// Must be set to false in order for global-agent (used by node-sp-auth) package
-// not to override custom configured HTTP(S) Agents,
-// as override causes failure when using NtlmClient
-process.env.GLOBAL_AGENT_FORCE_GLOBAL_AGENT = `false`;
-
 import { TableSchema } from '@google-cloud/bigquery';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -425,7 +420,7 @@ async function bootstrap() {
 
 		cron.reset(now.toDate());
 
-		const nextExtractionStart = moment(cron.next().value.toDate());
+		const nextExtractionStart = moment(cron.next().toDate());
 		const msToStartAnotherExtraction = Math.max(nextExtractionStart.diff(now), 0);
 
 		logger.log(

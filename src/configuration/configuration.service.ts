@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Command, InvalidArgumentError, Option } from 'commander';
-import { CronExpression, parseExpression } from 'cron-parser';
+import { CronExpression, CronExpressionParser } from 'cron-parser';
 import { config } from 'dotenv';
 import { parseIntClamp } from '../utils';
 
@@ -162,7 +162,7 @@ export class ConfigurationService {
 					.env(`CRON`)
 					.argParser(value => {
 						try {
-							return !value ? undefined : parseExpression(value, { iterator: true });
+							return !value ? undefined : CronExpressionParser.parse(value);
 						} catch (_) {
 							throw new InvalidArgumentError(``);
 						}
@@ -235,7 +235,7 @@ export class ConfigurationService {
 
 			persistentErrorCooldown: number;
 
-			cron?: CronExpression<true>;
+			cron?: CronExpression;
 
 			bqkeyfile: string;
 			bqproject: string;
