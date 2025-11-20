@@ -11,14 +11,18 @@ export class PuppeteerService {
 			});
 
 			browserPromise.then(async browser => {
-				const handlerResult = await handler(browser);
+				try {
+					const handlerResult = await handler(browser);
 
-				subscriber.next(handlerResult);
-				subscriber.complete();
+					subscriber.next(handlerResult);
+					subscriber.complete();
+				} catch (error) {
+					subscriber.error(error);
+				}
 			});
 
 			return () => {
-				browserPromise.catch(() => null).then(browser => browser?.close());
+				browserPromise.catch(() => null).then(browser => browser?.close().catch(() => {}));
 			};
 		});
 	}

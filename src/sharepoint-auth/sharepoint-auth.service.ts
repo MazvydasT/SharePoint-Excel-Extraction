@@ -40,11 +40,11 @@ export class SharePointAuthService {
 
 							await emailInput?.asLocator().fill(username);
 
-							submitButton?.click();
+							await submitButton?.click();
 
 							const rsaTokenButton = await page.waitForSelector(`[aria-label="Active Directory"]`);
 
-							rsaTokenButton?.click();
+							await rsaTokenButton?.click();
 
 							await Promise.any([
 								page.waitForSelector(`#UserProfileDisplayName`),
