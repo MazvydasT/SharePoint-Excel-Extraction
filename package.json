@@ -1,6 +1,6 @@
 {
 	"name": "sharepoint-excel-extraction",
-	"version": "1.17.4",
+	"version": "1.18.0",
 	"description": "",
 	"author": "",
 	"private": false,
@@ -37,7 +37,7 @@
 		"https-proxy-agent": "^7.0.6",
 		"ix": "^7.0.0",
 		"moment": "^2.30.1",
-		"puppeteer": "^24.30.0",
+		"puppeteer": "^24.31.0",
 		"reflect-metadata": "^0.2.2",
 		"rimraf": "^6.1.2",
 		"rxjs": "^7.8.2",
