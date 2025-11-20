@@ -46,7 +46,10 @@ export class SharePointAuthService {
 
 							rsaTokenButton?.click();
 
-							await page.waitForSelector(`#UserProfileDisplayName`);
+							await Promise.any([
+								page.waitForSelector(`#UserProfileDisplayName`),
+								page.waitForNetworkIdle()
+							]);
 
 							const cookies = await browser.cookies();
 
