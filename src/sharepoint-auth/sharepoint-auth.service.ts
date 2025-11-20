@@ -1,6 +1,6 @@
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
-import { from, mergeMap, of } from 'rxjs';
+import { from, mergeMap, of, tap } from 'rxjs';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { PuppeteerService } from '../puppeteer/puppeteer.service';
 import { IAuthHeaders } from './IAuthHeaders';
@@ -62,11 +62,10 @@ export class SharePointAuthService {
 								}
 							};
 
-							await this.cache.set(cacheKey, authHeaders, cacheTimeToLive);
-
 							return authHeaders;
 						})
-			)
+			),
+			tap(async authHeaders => await this.cache.set(cacheKey, authHeaders, cacheTimeToLive))
 		);
 	}
 }
