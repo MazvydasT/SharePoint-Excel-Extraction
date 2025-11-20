@@ -16,7 +16,7 @@ export class SharePointAuthService {
 	getAuth(url: URL, username: string, password: string) {
 		return !!this.configurationService.ntlm
 			? of({} as IAuthHeaders)
-			: this.getAuthByBrowser(`${url.origin}/Pages/PageNotFoundError.aspx`, username, password);
+			: this.getAuthByBrowser(url.origin, username, password);
 	}
 
 	private getAuthByBrowser(url: string, username: string, password: string) {
@@ -29,26 +29,25 @@ export class SharePointAuthService {
 					? of(authHeaders)
 					: this.puppeteerService.executeInBrowser(async browser => {
 							const page = await browser.newPage();
-							await page.authenticate({ username, password });
-
-							page.goto(url);
 
 							const [emailInput, submitButton] = await Promise.all([
 								page.waitForSelector(`input[name="loginfmt"]`),
-								page.waitForSelector(`input[type="submit"]`)
+								page.waitForSelector(`input[type="submit"]`),
+								page.goto(url)
 							]);
 
 							await emailInput?.asLocator().fill(username);
 
-							await submitButton?.click();
+							const [rsaTokenButton] = await Promise.all([
+								page.waitForSelector(`[aria-label="Active Directory"]`),
+								submitButton?.click()
+							]);
 
-							const rsaTokenButton = await page.waitForSelector(`[aria-label="Active Directory"]`);
+							await page.authenticate({ username, password });
 
-							await rsaTokenButton?.click();
-
-							await Promise.any([
-								page.waitForSelector(`#UserProfileDisplayName`),
-								page.waitForNetworkIdle()
+							await Promise.all([
+								page.waitForResponse(response => response.url().startsWith(url)),
+								rsaTokenButton?.click()
 							]);
 
 							const cookies = await browser.cookies();
