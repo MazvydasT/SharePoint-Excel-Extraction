@@ -28,14 +28,13 @@ export class PuppeteerService {
 							}
 						});
 
-						return () => {
+						return () =>
 							browserPromise
 								.catch(() => null)
 								.then(browser => browser?.close())
 								.catch(() => {})
 								.then(() => disposableTempDirObject.remove())
 								.catch(() => {});
-						};
 					})
 			)
 		);

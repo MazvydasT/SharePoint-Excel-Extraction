@@ -14,6 +14,7 @@ export class TempDirService {
 			try {
 				const tempDirObject = mkdtempDisposableSync(TEMP_DIR_PATH);
 				subscriber.next(tempDirObject);
+				subscriber.complete();
 			} catch (error) {
 				subscriber.error(error);
 			}
