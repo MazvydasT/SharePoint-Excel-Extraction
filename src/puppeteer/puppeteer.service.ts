@@ -15,13 +15,19 @@ export class PuppeteerService {
 						const browserPromise = launch({
 							headless: true,
 							userDataDir: disposableTempDirObject.path
+						}).catch(reason => {
+							subscriber.error(reason);
+							return null;
 						});
 
 						browserPromise.then(async browser => {
 							try {
-								const handlerResult = await handler(browser);
+								if (!!browser) {
+									const handlerResult = await handler(browser);
 
-								subscriber.next(handlerResult);
+									subscriber.next(handlerResult);
+								}
+
 								subscriber.complete();
 							} catch (error) {
 								subscriber.error(error);
@@ -30,7 +36,6 @@ export class PuppeteerService {
 
 						return () =>
 							browserPromise
-								.catch(() => null)
 								.then(browser => browser?.close())
 								.catch(() => {})
 								.then(() => disposableTempDirObject.remove())
