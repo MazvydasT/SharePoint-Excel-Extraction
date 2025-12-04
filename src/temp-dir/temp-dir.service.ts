@@ -1,23 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { DisposableTempDir, mkdtempDisposableSync } from 'fs';
+import { mkdtempDisposable } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { Observable } from 'rxjs';
 
-const TEMP_DIR_PATH = join(tmpdir(), randomUUID());
+const TEMP_DIR_PATH = tmpdir();
 
 @Injectable()
 export class TempDirService {
 	getTempDir() {
-		return new Observable<DisposableTempDir>(subscriber => {
-			try {
-				const tempDirObject = mkdtempDisposableSync(TEMP_DIR_PATH);
-				subscriber.next(tempDirObject);
-				subscriber.complete();
-			} catch (error) {
-				subscriber.error(error);
-			}
-		});
+		return mkdtempDisposable(join(TEMP_DIR_PATH, randomUUID()));
 	}
 }
