@@ -5,8 +5,9 @@ import { NtlmClient } from 'axios-ntlm';
 import { Agent } from 'https';
 import { from as ixFrom, toArray } from 'ix/iterable';
 import { map as mapIx, take } from 'ix/iterable/operators';
-import { defer, from, map, mergeMap } from 'rxjs';
+import { defer, from, map, mergeMap, of } from 'rxjs';
 import { ConfigurationService } from '../configuration/configuration.service';
+import { IAuthHeaders } from '../sharepoint-auth/IAuthHeaders';
 import { SharePointAuthService } from '../sharepoint-auth/sharepoint-auth.service';
 import { IRESTOptions } from './IRESTOptions';
 import { ISharePointFileByURLData } from './ISharePointFileByURLData';
@@ -31,44 +32,50 @@ export class SharePointService {
 	) {}
 
 	private getRequest<T>(url: URL, config: AxiosRequestConfig<T> = {}) {
-		return this.sharePointAuthService
-			.getAuth(url, this.configurationService.username, this.configurationService.password)
-			.pipe(
-				mergeMap(authResponse => {
-					const requestConfig: AxiosRequestConfig = {
-						method: `GET`,
-						...config,
-						url: url.href,
-						headers: {
-							...config.headers,
-							...authResponse.headers
-						}
-					};
-
-					let httpServiceReference = this.httpService;
-
-					if (!!this.configurationService.ntlm) {
-						requestConfig.proxy = false;
-						requestConfig.timeout = 10000;
-						requestConfig.httpsAgent = new Agent({
-							keepAlive: true,
-							rejectUnauthorized: false,
-							minVersion: `TLSv1`
-						});
-
-						httpServiceReference = NtlmClient(
-							{
-								username: this.configurationService.username,
-								password: this.configurationService.password,
-								domain: this.configurationService.domain
-							},
-							requestConfig as any
-						) as any as HttpService;
+		return (
+			!this.configurationService.ntlm
+				? this.sharePointAuthService.getAuth(
+						url.href,
+						this.configurationService.username,
+						this.configurationService.password
+					)
+				: of({} as IAuthHeaders)
+		).pipe(
+			mergeMap(authResponse => {
+				const requestConfig: AxiosRequestConfig = {
+					method: `GET`,
+					...config,
+					url: url.href,
+					headers: {
+						...config.headers,
+						...authResponse.headers
 					}
+				};
 
-					return httpServiceReference.request<T>(requestConfig);
-				})
-			);
+				let httpServiceReference = this.httpService;
+
+				if (!!this.configurationService.ntlm) {
+					requestConfig.proxy = false;
+					requestConfig.timeout = 10000;
+					requestConfig.httpsAgent = new Agent({
+						keepAlive: true,
+						rejectUnauthorized: false,
+						minVersion: `TLSv1`
+					});
+
+					httpServiceReference = NtlmClient(
+						{
+							username: this.configurationService.username,
+							password: this.configurationService.password,
+							domain: this.configurationService.domain
+						},
+						requestConfig as any
+					) as any as HttpService;
+				}
+
+				return httpServiceReference.request<T>(requestConfig);
+			})
+		);
 	}
 
 	private getSite(url: URL) {

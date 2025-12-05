@@ -34,6 +34,19 @@ export class ConfigurationService {
 			.addOption(envOption)
 
 			.addOption(
+				new Option(`--share-point-auth-service`, `Supplies auth headers to other instances`).env(
+					`SHAREPOINT_AUTH_SERVICE`
+				)
+			)
+
+			.addOption(
+				new Option(
+					`--do-not-use-share-point-auth-service`,
+					`Uses own browser instance to get auth headers`
+				).env(`DO_NOT_USE_SHAREPOINT_AUTH_SERVICE`)
+			)
+
+			.addOption(
 				new Option(`-f, ${sharePointFolderOption} <address>`, `SharePoint folder address`)
 					.env(`SHAREPOINT_FOLDER`)
 					.argParser(value => {
@@ -208,6 +221,9 @@ export class ConfigurationService {
 			.parse();
 
 		const options = command.opts<{
+			sharePointAuthService?: boolean;
+			doNotUseSharePointAuthService?: boolean;
+
 			sharePointFolder?: URL;
 			filename?: string;
 
@@ -244,24 +260,35 @@ export class ConfigurationService {
 			bqtableNameRegexp?: RegExp;
 		}>();
 
-		if (
-			[!!options.sharePointFolder, !!options.fileUrl, !!options.filePath].filter(v => v).length != 1
-		)
-			command.error(
-				`One and only one of the following must be set: ${[
-					sharePointFolderOption,
-					fileURLOption,
-					filePathOption
-				].join(', ')}`
-			);
+		if (!options.sharePointAuthService) {
+			if (
+				[!!options.sharePointFolder, !!options.fileUrl, !!options.filePath].filter(v => v).length !=
+				1
+			)
+				command.error(
+					`One and only one of the following must be set: ${[
+						sharePointFolderOption,
+						fileURLOption,
+						filePathOption
+					].join(', ')}`
+				);
 
-		if ([options.multipleFiles, !!options.bqtable].filter(v => v).length != 1)
-			command.error(
-				`One and only one of the following must be set: ${[multipleFilesOption, bqTableOption].join(', ')}`
-			);
+			if ([options.multipleFiles, !!options.bqtable].filter(v => v).length != 1)
+				command.error(
+					`One and only one of the following must be set: ${[multipleFilesOption, bqTableOption].join(', ')}`
+				);
+		}
 
 		return Object.freeze(options);
 	})();
+
+	get sharePointAuthService() {
+		return this.optionValues.sharePointAuthService;
+	}
+
+	get doNotUseSharePointAuthService() {
+		return this.optionValues.doNotUseSharePointAuthService;
+	}
 
 	get sharePointFolder() {
 		return this.optionValues.sharePointFolder;

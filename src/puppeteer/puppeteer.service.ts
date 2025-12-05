@@ -10,7 +10,7 @@ export class PuppeteerService {
 		await using disposableTempDirObject = await this.tempDirService.getTempDir();
 
 		const browser = await launch({
-			headless: false,
+			headless: true,
 			userDataDir: disposableTempDirObject.path
 		});
 
