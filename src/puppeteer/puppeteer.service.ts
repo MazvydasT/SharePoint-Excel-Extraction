@@ -14,10 +14,6 @@ export class PuppeteerService {
 			userDataDir: disposableTempDirObject.path
 		});
 
-		const handlerData = await handler(browser);
-
-		await browser.close();
-
-		return handlerData;
+		return await handler(browser).finally(() => browser.close());
 	}
 }
