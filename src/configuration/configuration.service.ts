@@ -30,6 +30,13 @@ export class ConfigurationService {
 		const multipleFilesOption = `--multiple-files`;
 		const bqTableOption = `--bqtable`;
 
+		const bqKeyFileOption = `--bqkeyfile`;
+		const bqProjectOption = `--bqproject`;
+		const bqDatasetOption = `--bqdataset`;
+
+		const usernameOption = `--username`;
+		const passwordOption = `--password`;
+
 		const command = new Command()
 			.addOption(envOption)
 
@@ -85,7 +92,6 @@ export class ConfigurationService {
 
 			.addOption(
 				new Option(`-s, --sheet <name>`, `Sheet name or index to extract`).env(`SHEET`).default(0)
-				//.makeOptionMandatory(true)
 			)
 			.addOption(
 				new Option(`-h, --header-row <number>`, `Header row number`)
@@ -123,14 +129,10 @@ export class ConfigurationService {
 			.addOption(new Option(`--include-blank-columns`).env(`INCLUDE_BLANK_COLUMNS`).default(false))
 
 			.addOption(
-				new Option(`-u, --username <string>`, `SharePoint username`)
-					.env(`USERNAME`)
-					.makeOptionMandatory(true)
+				new Option(`-u, ${usernameOption} <string>`, `SharePoint username`).env(`USERNAME`)
 			)
 			.addOption(
-				new Option(`-p, --password <string>`, `SharePoint password`)
-					.env(`PASSWORD`)
-					.makeOptionMandatory(true)
+				new Option(`-p, ${passwordOption} <string>`, `SharePoint password`).env(`PASSWORD`)
 			)
 
 			.addOption(new Option(`--https-proxy <string>`, `HTTP proxy`).env(`HTTPS_PROXY`))
@@ -182,25 +184,10 @@ export class ConfigurationService {
 					})
 			)
 
-			.addOption(
-				new Option(`--bqkeyfile <filepath>`, 'BigQuery key file')
-					.env(`BQKEYFILE`)
-					.makeOptionMandatory(true)
-			)
-			.addOption(
-				new Option(`--bqproject <name>`, `BigQuery project name`)
-					.env(`BQPROJECT`)
-					.makeOptionMandatory(true)
-			)
-			.addOption(
-				new Option(`--bqdataset <name>`, `BigQuery dataset name`)
-					.env(`BQDATASET`)
-					.makeOptionMandatory(true)
-			)
-			.addOption(
-				new Option(`${bqTableOption} <name>`, `BigQuery table name`).env(`BQTABLE`)
-				//.makeOptionMandatory(true)
-			)
+			.addOption(new Option(`${bqKeyFileOption} <filepath>`, 'BigQuery key file').env(`BQKEYFILE`))
+			.addOption(new Option(`${bqProjectOption} <name>`, `BigQuery project name`).env(`BQPROJECT`))
+			.addOption(new Option(`${bqDatasetOption} <name>`, `BigQuery dataset name`).env(`BQDATASET`))
+			.addOption(new Option(`${bqTableOption} <name>`, `BigQuery table name`).env(`BQTABLE`))
 			.addOption(
 				new Option(
 					`--bqtable-name-regexp <expression>`,
@@ -276,6 +263,18 @@ export class ConfigurationService {
 			if ([options.multipleFiles, !!options.bqtable].filter(v => v).length != 1)
 				command.error(
 					`One and only one of the following must be set: ${[multipleFilesOption, bqTableOption].join(', ')}`
+				);
+
+			if (
+				[!!options.bqkeyfile, !!options.bqproject, !!options.bqdataset].filter(v => v).length != 3
+			)
+				command.error(
+					`All of the following must be set: ${[bqKeyFileOption, bqProjectOption, bqDatasetOption].join(', ')}`
+				);
+
+			if (!options.filePath && [!!options.username, !!options.password].filter(v => v).length != 2)
+				command.error(
+					`All of the following must be set: ${[usernameOption, passwordOption].join(', ')}`
 				);
 		}
 
