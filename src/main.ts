@@ -435,6 +435,8 @@ async function bootstrap() {
 				continue;
 			}
 
+			persistentErrorCount = 0;
+
 			const cron = configurationService.cron;
 
 			if (!cron) break;
