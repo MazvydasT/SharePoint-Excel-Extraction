@@ -1,7 +1,7 @@
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { from, mergeMap, of, tap, timeout } from 'rxjs';
+import { from, mergeMap, of, timeout } from 'rxjs';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { PuppeteerService } from '../puppeteer/puppeteer.service';
 import { IAuthHeaders } from './IAuthHeaders';
@@ -39,8 +39,8 @@ export class SharePointAuthService {
 					if (!inFlightExecutionInBrowser) {
 						this.inFlightExecutionsInBrowser.set(
 							cacheKey,
-							(inFlightExecutionInBrowser = this.puppeteerService.executeInBrowser(
-								async browser => {
+							(inFlightExecutionInBrowser = this.puppeteerService
+								.executeInBrowser(async browser => {
 									const page = await browser.newPage();
 
 									const [emailInput, submitButton] = await Promise.all([
@@ -74,17 +74,21 @@ export class SharePointAuthService {
 										}
 									};
 
+									await this.cache.set(cacheKey, authHeaders, cacheTimeToLive);
+
 									return authHeaders;
-								}
-							))
+								})
+								.then(authHeaders => {
+									this.inFlightExecutionsInBrowser.delete(cacheKey);
+
+									return authHeaders;
+								}))
 						);
 					}
 
 					return inFlightExecutionInBrowser;
 				}
-			}),
-			tap(async authHeaders => await this.cache.set(cacheKey, authHeaders, cacheTimeToLive)),
-			tap(() => this.inFlightExecutionsInBrowser.delete(cacheKey))
+			})
 		);
 	}
 
