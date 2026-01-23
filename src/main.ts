@@ -31,7 +31,7 @@ import { OutputService } from './output/output.service';
 import { TRANSPORT } from './sharepoint-auth/sharepoint-auth.constants';
 import { SharePointAuthModule } from './sharepoint-auth/sharepoint-auth.module';
 import { SharePointService } from './sharepoint/sharepoint.service';
-import { getAdditionalProperties } from './utils';
+import { clamp, getAdditionalProperties } from './utils';
 
 enum FileType {
 	SharePoint,
@@ -90,6 +90,8 @@ async function bootstrap() {
 					: `${startsWithFunctionName}(${nameColumn},'${fileNameWithoutStars}')`;
 
 		const bigQueryDateTimeFormat = `YYYY-MM-DD HH:mm:ss`;
+
+		let persistentErrorCount = 0;
 
 		while (true) {
 			logger.log(`Starting extraction`);
@@ -413,14 +415,22 @@ async function bootstrap() {
 			} catch (error) {
 				logger.error(error, ...getAdditionalProperties(error), error.stack);
 
+				const cooldown =
+					clamp(
+						// Exponential backoff
+						configurationService.persistentErrorCooldown * Math.pow(2, persistentErrorCount++),
+						configurationService.persistentErrorCooldown,
+						configurationService.persistentErrorCooldownMax
+					) +
+					// Random jitter
+					Math.random() * 60 /*s*/ * 1000; /*ms*/
+
 				// Persistent error cooldown
 				logger.log(
-					`Persistent error occured. Will retry in ${moment
-						.duration(configurationService.persistentErrorCooldown)
-						.humanize()}.`
+					`Persistent error occured. Will retry in ${moment.duration(cooldown).humanize()}.`
 				);
 
-				await firstValueFrom(timer(configurationService.persistentErrorCooldown));
+				await firstValueFrom(timer(cooldown));
 
 				continue;
 			}

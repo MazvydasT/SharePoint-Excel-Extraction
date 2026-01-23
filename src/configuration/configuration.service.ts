@@ -168,7 +168,17 @@ export class ConfigurationService {
 					`Time in ms between re-extarction attempts after persistent error`
 				)
 					.env(`PERSISTENT_ERROR_COOLDOWN`)
-					.default(600000)
+					.default(10 /*min*/ * 60 /*s*/ * 1000 /*ms*/)
+					.argParser(parseInt)
+			)
+
+			.addOption(
+				new Option(
+					`--persistent-error-cooldown-max <ms>`,
+					`Max time in ms between re-extarction attempts after persistent error`
+				)
+					.env(`PERSISTENT_ERROR_COOLDOWN_MAX`)
+					.default(24 /*h*/ * 60 /*min*/ * 60 /*s*/ * 1000 /*ms*/)
 					.argParser(parseInt)
 			)
 
@@ -237,6 +247,7 @@ export class ConfigurationService {
 			retryDelay: number;
 
 			persistentErrorCooldown: number;
+			persistentErrorCooldownMax: number;
 
 			cron?: CronExpression;
 
@@ -355,6 +366,10 @@ export class ConfigurationService {
 
 	get persistentErrorCooldown() {
 		return this.optionValues.persistentErrorCooldown;
+	}
+
+	get persistentErrorCooldownMax() {
+		return this.optionValues.persistentErrorCooldownMax;
 	}
 
 	get cron() {
