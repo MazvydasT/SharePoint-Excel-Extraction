@@ -1,6 +1,7 @@
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
+import { ElementHandle } from 'puppeteer';
 import { from, mergeMap, of, timeout } from 'rxjs';
 import { ConfigurationService } from '../configuration/configuration.service';
 import { PuppeteerService } from '../puppeteer/puppeteer.service';
@@ -51,8 +52,39 @@ export class SharePointAuthService {
 
 									await emailInput?.asLocator().fill(username);
 
+									const abortController = new AbortController();
+									const abortSignal = abortController.signal;
+
 									const [rsaTokenButton] = await Promise.all([
-										page.waitForSelector(`[aria-label="Active Directory"]`),
+										page
+											.waitForSelector(`[aria-label="Active Directory"]`)
+											.finally(() => abortController.abort()),
+
+										(async () => {
+											let signInOptionPicker: ElementHandle<Element> | null = null;
+											let usePasswordOption: ElementHandle<Element> | null = null;
+
+											try {
+												signInOptionPicker = await page.waitForSelector(
+													`#idA_PWD_SwitchToCredPicker`,
+													{ signal: abortSignal }
+												);
+
+												await signInOptionPicker?.click();
+
+												usePasswordOption = await page.waitForSelector(
+													`::-p-text(Use my password)`,
+													{ signal: abortSignal }
+												);
+
+												await usePasswordOption?.click();
+											} catch (_) {
+											} finally {
+												await signInOptionPicker?.dispose();
+												await usePasswordOption?.dispose();
+											}
+										})(),
+
 										submitButton?.click()
 									]);
 
