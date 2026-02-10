@@ -44,13 +44,12 @@ export class SharePointAuthService {
 								.executeInBrowser(async browser => {
 									const page = await browser.newPage();
 
-									const [emailInput, submitButton] = await Promise.all([
-										page.waitForSelector(`input[name="loginfmt"]`),
-										page.waitForSelector(`input[type="submit"]`),
-										page.goto(url)
-									]);
+									await page.goto(url);
 
-									await emailInput?.asLocator().fill(username);
+									const emailInput = page.locator(`input[name="loginfmt"]`);
+									const submitButton = page.locator(`input[type="submit"]`);
+
+									await emailInput.fill(username);
 
 									const abortController = new AbortController();
 									const abortSignal = abortController.signal;
@@ -85,7 +84,7 @@ export class SharePointAuthService {
 											}
 										})(),
 
-										submitButton?.click()
+										submitButton.click()
 									]);
 
 									await page.authenticate({ username, password });
@@ -94,6 +93,8 @@ export class SharePointAuthService {
 										page.waitForResponse(response => response.url().startsWith(url)),
 										rsaTokenButton?.click()
 									]);
+
+									await rsaTokenButton?.dispose();
 
 									const cookies = await browser.cookies();
 
