@@ -77,7 +77,10 @@ export class SharePointAuthService {
 												);
 
 												await usePasswordOption?.click();
-											} catch (_) {
+											} catch (error) {
+												if (!abortSignal.aborted) {
+													throw error;
+												}
 											} finally {
 												await signInOptionPicker?.dispose();
 												await usePasswordOption?.dispose();
