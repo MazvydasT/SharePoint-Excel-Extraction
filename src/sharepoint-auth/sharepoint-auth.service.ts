@@ -111,10 +111,8 @@ export class SharePointAuthService {
 
 									return authHeaders;
 								})
-								.then(authHeaders => {
+								.finally(() => {
 									this.inFlightExecutionsInBrowser.delete(cacheKey);
-
-									return authHeaders;
 								}))
 						);
 					}
