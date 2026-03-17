@@ -54,38 +54,30 @@ export class SharePointAuthService {
 									const abortController = new AbortController();
 									const abortSignal = abortController.signal;
 
+									const abortableClickTarget = async (selector: string) => {
+										let targetElementHandle: ElementHandle<Element> | null = null;
+
+										try {
+											targetElementHandle = await page.waitForSelector(selector, {
+												signal: abortSignal
+											});
+
+											await targetElementHandle?.click();
+										} catch (error) {
+											if (!abortSignal.aborted) throw error;
+										} finally {
+											await targetElementHandle?.dispose();
+										}
+									};
+
 									const [rsaTokenButton] = await Promise.all([
 										page
 											.waitForSelector(`[aria-label="Active Directory"]`)
 											.finally(() => abortController.abort()),
 
-										(async () => {
-											let signInOptionPicker: ElementHandle<Element> | null = null;
-											let usePasswordOption: ElementHandle<Element> | null = null;
-
-											try {
-												signInOptionPicker = await page.waitForSelector(
-													`#idA_PWD_SwitchToCredPicker`,
-													{ signal: abortSignal }
-												);
-
-												await signInOptionPicker?.click();
-
-												usePasswordOption = await page.waitForSelector(
-													`::-p-text(Use my password)`,
-													{ signal: abortSignal }
-												);
-
-												await usePasswordOption?.click();
-											} catch (error) {
-												if (!abortSignal.aborted) {
-													throw error;
-												}
-											} finally {
-												await signInOptionPicker?.dispose();
-												await usePasswordOption?.dispose();
-											}
-										})(),
+										abortableClickTarget(`#idA_PWD_SwitchToCredPicker`),
+										abortableClickTarget(`::-p-text(Use my password)`),
+										abortableClickTarget(`::-p-text(Use your password instead)`),
 
 										submitButton.click()
 									]);
