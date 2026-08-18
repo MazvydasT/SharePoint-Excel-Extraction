@@ -412,7 +412,7 @@ async function bootstrap() {
 					),
 					{ defaultValue: null }
 				);
-			} catch (error) {
+			} catch (error: any) {
 				logger.error(error, ...getAdditionalProperties(error), error.stack);
 
 				const cooldown =

@@ -5,5 +5,11 @@
     "test",
     "dist",
     "**/*spec.ts"
-  ]
+  ],
+  "compilerOptions": {
+    "types": [
+      "node"
+    ],
+    "rootDir": "./src"
+  }
 }
