@@ -452,7 +452,8 @@ async function bootstrap() {
 			cron.reset(now.toDate());
 
 			const nextExtractionStart = moment(cron.next().toDate());
-			const msToStartAnotherExtraction = Math.max(nextExtractionStart.diff(now), 0);
+			const msToStartAnotherExtraction =
+				Math.max(nextExtractionStart.diff(now), 0) + Math.random() * 60 /*s*/ * 1000; /*ms*/
 
 			logger.log(
 				`Next extraction will start in ${moment
