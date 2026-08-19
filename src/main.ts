@@ -4,7 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions } from '@nestjs/microservices';
 import { createCache } from 'cache-manager';
 import { from, last, range, toArray } from 'ix/iterable';
-import { flatMap, groupBy, map as mapIx, orderBy } from 'ix/iterable/operators';
+import { map as mapIx } from 'ix/iterable/operators';
 import moment from 'moment';
 import { parse } from 'path';
 import {
@@ -233,27 +233,37 @@ async function bootstrap() {
 															if (numericStartRegExp.test(trimmedColumnName))
 																trimmedColumnName = `_` + trimmedColumnName;
 
-															return {
-																name:
-																	trimmedColumnName.length > 0
-																		? trimmedColumnName
-																		: `BLANK (${excelService.columnNumberToName(index + 1)})`,
-																index
-															};
-														}),
-														groupBy(columnInfo => columnInfo.name.toUpperCase()),
-														flatMap(columnInfoGroup =>
-															columnInfoGroup.pipe(
-																mapIx(({ name, index }, inGroupIndex) => ({
-																	name: name + (inGroupIndex > 0 ? `_${inGroupIndex}` : ``),
-																	index
-																}))
-															)
-														),
-														orderBy(({ index }) => index),
-														mapIx(({ name }) => name)
+															trimmedColumnName = trimmedColumnName
+																.replaceAll(nonAlphaNumericRegExp, `_`)
+																.replaceAll(nonAlphaNumericStartRegExp, `_`)
+																.replaceAll(nonAlphaNumericStartOnlyBeforeLettersRegExp, ``)
+																.replaceAll(nonAlphaNumericEndRegExp, ``);
+
+															return trimmedColumnName.length > 0
+																? trimmedColumnName
+																: `BLANK_${excelService.columnNumberToName(index + 1)}`;
+														})
 													)
 												);
+
+									const uniqueFieldNames = new Set();
+
+									for (let index = 0, count = header.length; index < count; ++index) {
+										let fieldNameSuffix = 0;
+
+										while (true) {
+											const newFieldName = `${header[index]}${fieldNameSuffix == 0 ? '' : `_${fieldNameSuffix}`}`;
+
+											if (uniqueFieldNames.has(newFieldName.toUpperCase())) {
+												++fieldNameSuffix;
+												continue;
+											}
+
+											header[index] = newFieldName;
+											uniqueFieldNames.add(newFieldName.toUpperCase());
+											break;
+										}
+									}
 
 									const dataRowNumber = configurationService.dataRow;
 
@@ -307,13 +317,7 @@ async function bootstrap() {
 										mapIx(dataRow =>
 											Object.fromEntries(
 												Object.entries(dataRow).map(([key, value]) => {
-													const newKey = key
-														.replaceAll(nonAlphaNumericRegExp, `_`)
-														.replaceAll(nonAlphaNumericStartRegExp, `_`)
-														.replaceAll(nonAlphaNumericStartOnlyBeforeLettersRegExp, ``)
-														.replaceAll(nonAlphaNumericEndRegExp, ``);
-
-													let fieldType = fieldTypes.get(newKey);
+													let fieldType = fieldTypes.get(key);
 
 													if (!fieldType) {
 														fieldType = {
@@ -322,7 +326,7 @@ async function bootstrap() {
 															INTEGER: false,
 															FLOAT: false
 														};
-														fieldTypes.set(newKey, fieldType);
+														fieldTypes.set(key, fieldType);
 													}
 
 													let newValue = value;
@@ -344,7 +348,7 @@ async function bootstrap() {
 														if (isInteger) fieldType.INTEGER = true;
 													}
 
-													return [newKey, newValue];
+													return [key, newValue];
 												})
 											)
 										),
