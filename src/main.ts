@@ -31,7 +31,7 @@ import { OutputService } from './output/output.service';
 import { TRANSPORT } from './sharepoint-auth/sharepoint-auth.constants';
 import { SharePointAuthModule } from './sharepoint-auth/sharepoint-auth.module';
 import { SharePointService } from './sharepoint/sharepoint.service';
-import { clamp, getAdditionalProperties } from './utils';
+import { clamp } from './utils';
 
 enum FileType {
 	SharePoint,
@@ -413,7 +413,7 @@ async function bootstrap() {
 					{ defaultValue: null }
 				);
 			} catch (error: any) {
-				logger.error(error, ...getAdditionalProperties(error), error.stack);
+				logger.error(error, error.stack);
 
 				const cooldown =
 					clamp(
