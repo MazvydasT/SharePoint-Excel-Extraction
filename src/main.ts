@@ -386,8 +386,6 @@ async function bootstrap() {
 								}),
 
 								mergeMap(({ dataRows, schema }) => {
-									logger.log(`${sequenceIdentifier} Writing data to BigQuery`);
-
 									const matches = configurationService.bqtableNameRegExp?.exec(
 										currentlyExtractedFileName
 									);
@@ -400,6 +398,10 @@ async function bootstrap() {
 												nonAlphaNumericRegExp,
 												`_`
 											);
+
+									logger.log(
+										`${sequenceIdentifier} Writing data to BigQuery (${configurationService.bigQueryProject}.${configurationService.bigQueryDataset}.${bigQueryTableName})`
+									);
 
 									return outputService.outputToBigQuery(dataRows, bigQueryTableName, schema).pipe(
 										retry(retryConfig),
