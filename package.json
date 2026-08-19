@@ -45,6 +45,8 @@
 		"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
 	},
 	"devDependencies": {
+		"@eslint/eslintrc": "^3.3.6",
+		"@eslint/js": "^10.0.1",
 		"@nestjs/cli": "^11.0.24",
 		"@nestjs/schematics": "^11.1.0",
 		"@nestjs/testing": "^11.2.1",
@@ -57,6 +59,7 @@
 		"eslint": "^10.8.1",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-prettier": "^5.5.6",
+		"globals": "^17.11.0",
 		"jest": "30.4.2",
 		"prettier": "^3.9.6",
 		"source-map-support": "^0.5.21",
@@ -83,5 +86,9 @@
 		],
 		"coverageDirectory": "../coverage",
 		"testEnvironment": "node"
+	},
+	"allowScripts": {
+		"puppeteer@25.8.0": true,
+		"unrs-resolver@1.12.2": true
 	}
 }
