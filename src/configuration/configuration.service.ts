@@ -21,7 +21,7 @@ export class ConfigurationService {
 				.opts<{ env?: string }>().env;
 
 			config({ path: envPath, override: true });
-		} catch (_) {}
+		} catch {}
 
 		const sharePointFolderOption = `--share-point-folder`;
 		const fileURLOption = `--file-url`;
@@ -59,7 +59,7 @@ export class ConfigurationService {
 					.argParser(value => {
 						try {
 							return new URL(value);
-						} catch (_) {
+						} catch {
 							throw new InvalidArgumentError(``);
 						}
 					})
@@ -72,7 +72,7 @@ export class ConfigurationService {
 					.argParser(value => {
 						try {
 							return new URL(value);
-						} catch (_) {
+						} catch {
 							throw new InvalidArgumentError(``);
 						}
 					})
@@ -100,7 +100,7 @@ export class ConfigurationService {
 					.argParser(value => {
 						try {
 							return parseIntClamp(value, { min: 0 });
-						} catch (_) {
+						} catch {
 							throw new InvalidArgumentError(``);
 						}
 					})
@@ -111,7 +111,7 @@ export class ConfigurationService {
 					.argParser(value => {
 						try {
 							return parseIntClamp(value, { min: 1 });
-						} catch (_) {
+						} catch {
 							throw new InvalidArgumentError(``);
 						}
 					})
@@ -144,7 +144,7 @@ export class ConfigurationService {
 					.argParser(value => {
 						try {
 							return parseIntClamp(value, { min: 0 });
-						} catch (_) {
+						} catch {
 							throw new InvalidArgumentError(``);
 						}
 					})
@@ -156,7 +156,7 @@ export class ConfigurationService {
 					.argParser(value => {
 						try {
 							return parseIntClamp(value, { min: 0 });
-						} catch (_) {
+						} catch {
 							throw new InvalidArgumentError(``);
 						}
 					})
@@ -188,7 +188,7 @@ export class ConfigurationService {
 					.argParser(value => {
 						try {
 							return !value ? undefined : CronExpressionParser.parse(value);
-						} catch (_) {
+						} catch {
 							throw new InvalidArgumentError(``);
 						}
 					})
@@ -207,7 +207,7 @@ export class ConfigurationService {
 					.argParser(value => {
 						try {
 							return !value ? undefined : new RegExp(value);
-						} catch (_) {
+						} catch {
 							throw new InvalidArgumentError(``);
 						}
 					})
