@@ -1,11 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { HttpClient, HttpRequestOptions } from '@nestjs/http-client';
-//import { NtlmClient } from 'axios-ntlm';
 import { from as ixFrom, toArray } from 'ix/iterable';
 import { map as mapIx, take } from 'ix/iterable/operators';
-import { defer, from, map, mergeMap, of } from 'rxjs';
+import { defer, from, map, mergeMap } from 'rxjs';
 import { ConfigurationService } from '../configuration/configuration.service.js';
-import { IAuthHeaders } from '../sharepoint-auth/IAuthHeaders.js';
 import { SharePointAuthService } from '../sharepoint-auth/sharepoint-auth.service.js';
 import { IRESTOptions } from './IRESTOptions.js';
 import { ISharePointFileByURLData } from './ISharePointFileByURLData.js';
@@ -30,49 +28,26 @@ export class SharePointService {
   ) {}
 
   private getRequest<T>(url: URL, config: HttpRequestOptions = {}) {
-    return (
-      !this.configurationService.ntlm
-        ? this.sharePointAuthService.getAuth(
-            url.href,
-            this.configurationService.username,
-            this.configurationService.password
-          )
-        : of({} as IAuthHeaders)
-    ).pipe(
-      mergeMap((authResponse) => {
-        const requestConfig: HttpRequestOptions = {
-          method: `GET`,
-          ...config,
-          headers: {
-            ...config.headers,
-            ...authResponse.headers
-          }
-        };
+    return this.sharePointAuthService
+      .getAuth(
+        url.href,
+        this.configurationService.username,
+        this.configurationService.password
+      )
+      .pipe(
+        mergeMap((authResponse) => {
+          const requestConfig: HttpRequestOptions = {
+            method: `GET`,
+            ...config,
+            headers: {
+              ...config.headers,
+              ...authResponse.headers
+            }
+          };
 
-        let httpServiceReference = this.httpService;
-
-        /*if (!!this.configurationService.ntlm) {
-          requestConfig.proxy = false;
-          requestConfig.timeout = 10000;
-          requestConfig.httpsAgent = new Agent({
-            keepAlive: true,
-            rejectUnauthorized: false,
-            minVersion: `TLSv1`
-          });
-
-          httpServiceReference = NtlmClient(
-            {
-              username: this.configurationService.username,
-              password: this.configurationService.password,
-              domain: this.configurationService.domain
-            },
-            requestConfig as any
-          ) as any as HttpClient;
-        }*/
-
-        return httpServiceReference.request<T>(url.href, requestConfig);
-      })
-    );
+          return this.httpService.request<T>(url.href, requestConfig);
+        })
+      );
   }
 
   private getSite(url: URL) {

@@ -92,15 +92,6 @@ export class ConfigurationService {
           `SPS2010`
         )
       )
-      .addOption(new Option(`--ntlm`, `Use NTLM authentication`).env(`NTLM`))
-      .addOption(
-        new Option(
-          `--domain <name>`,
-          `Domain name, used with NTLM authentication`
-        )
-          .env(`DOMAIN`)
-          .default(process.env.USERDOMAIN ?? ``)
-      )
 
       .addOption(
         new Option(`${filePathOption} <path>`, `File path or glob pattern`).env(
@@ -275,8 +266,6 @@ export class ConfigurationService {
       filePath?: string;
 
       sps2010?: boolean;
-      ntlm?: boolean;
-      domain: string;
 
       sheet: string | number;
       headerRow: number;
@@ -375,14 +364,6 @@ export class ConfigurationService {
 
   get sps2010() {
     return this.optionValues.sps2010;
-  }
-
-  get ntlm() {
-    return this.optionValues.ntlm;
-  }
-
-  get domain() {
-    return this.optionValues.domain;
   }
 
   get sheet() {
