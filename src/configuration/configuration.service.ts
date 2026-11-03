@@ -32,7 +32,6 @@ export class ConfigurationService {
     const multipleFilesOption = `--multiple-files`;
     const bqTableOption = `--bqtable`;
 
-    const bqKeyFileOption = `--bqkeyfile`;
     const bqProjectOption = `--bqproject`;
     const bqDatasetOption = `--bqdataset`;
 
@@ -232,11 +231,6 @@ export class ConfigurationService {
       )
 
       .addOption(
-        new Option(`${bqKeyFileOption} <filepath>`, 'BigQuery key file').env(
-          `BQKEYFILE`
-        )
-      )
-      .addOption(
         new Option(`${bqProjectOption} <name>`, `BigQuery project name`).env(
           `BQPROJECT`
         )
@@ -304,7 +298,6 @@ export class ConfigurationService {
 
       cron?: CronExpression;
 
-      bqkeyfile: string;
       bqproject: string;
       bqdataset: string;
       bqtable?: string;
@@ -335,12 +328,14 @@ export class ConfigurationService {
         );
 
       if (
-        [!!options.bqkeyfile, !!options.bqproject, !!options.bqdataset].filter(
-          (v) => v
-        ).length != 3
+        [
+          !!process.env.GOOGLE_APPLICATION_CREDENTIALS,
+          !!options.bqproject,
+          !!options.bqdataset
+        ].filter((v) => v).length != 3
       )
         command.error(
-          `All of the following must be set: ${[bqKeyFileOption, bqProjectOption, bqDatasetOption].join(', ')}`
+          `All of the following must be set: ${['GOOGLE_APPLICATION_CREDENTIALS', bqProjectOption, bqDatasetOption].join(', ')}`
         );
 
       if (
@@ -439,9 +434,6 @@ export class ConfigurationService {
     return this.optionValues.cron;
   }
 
-  get bigQueryKeyFilename() {
-    return this.optionValues.bqkeyfile;
-  }
   get bigQueryProject() {
     return this.optionValues.bqproject;
   }

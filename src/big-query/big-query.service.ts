@@ -10,8 +10,7 @@ export class BigQueryService {
 
   constructor(private configurationService: ConfigurationService) {
     this.bigQueryDataset = new BigQuery({
-      projectId: this.configurationService.bigQueryProject,
-      keyFilename: this.configurationService.bigQueryKeyFilename
+      projectId: this.configurationService.bigQueryProject
     }).dataset(this.configurationService.bigQueryDataset);
   }
 
