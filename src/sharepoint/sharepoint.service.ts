@@ -98,8 +98,6 @@ export class SharePointService {
       headers: { ...ACCEPT_JSON }
     }).pipe(
       map((response) => {
-        response.headers.get(`etag`);
-        //const etag = response.headers[`etag`];
         const etag = response.headers.get(`etag`);
 
         return isSPS2010
@@ -170,7 +168,6 @@ export class SharePointService {
   getFileContent(fileURL: URL) {
     return defer(() =>
       this.getRequest<Buffer>(fileURL, {
-        //responseType: 'arraybuffer'
         responseType: 'arrayBuffer'
       }).pipe(
         map((response) => {
