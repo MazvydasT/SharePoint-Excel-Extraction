@@ -1,21 +1,22 @@
-import { HttpModuleOptions, HttpModuleOptionsFactory } from '@nestjs/axios';
 import { Injectable } from '@nestjs/common';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-import { ConfigurationService } from '../configuration/configuration.service';
+import {
+	HttpClientModuleFactoryOptions,
+	HttpClientModuleOptionsFactory
+} from '@nestjs/http-client';
+import { ProxyAgent } from 'undici';
+import { ConfigurationService } from '../configuration/configuration.service.js';
 
 @Injectable()
-export class HttpConfigurationService implements HttpModuleOptionsFactory {
-	constructor(private configurationService: ConfigurationService) {}
+export class HttpConfigurationService implements HttpClientModuleOptionsFactory {
+  constructor(private configurationService: ConfigurationService) {}
 
-	createHttpOptions(): HttpModuleOptions | Promise<HttpModuleOptions> {
-		return {
-			proxy: false,
-			timeout: 10000,
-			...(!!this.configurationService.httpsProxy
-				? {
-						httpsAgent: new HttpsProxyAgent(this.configurationService.httpsProxy)
-				  }
-				: {})
-		};
-	}
+  createHttpClientModuleOptions():
+    HttpClientModuleFactoryOptions | Promise<HttpClientModuleFactoryOptions> {
+    return {
+      timeout: 10000,
+      dispatcher: !!this.configurationService.httpsProxy
+        ? new ProxyAgent(this.configurationService.httpsProxy)
+        : undefined
+    };
+  }
 }

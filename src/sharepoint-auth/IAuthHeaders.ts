@@ -1,5 +1,5 @@
 export interface IAuthHeaders {
-	headers: {
-		[key: string]: any;
-	};
+  headers: {
+    [key: string]: any;
+  };
 }

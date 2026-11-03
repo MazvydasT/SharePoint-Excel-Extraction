@@ -22,452 +22,506 @@ import {
 	throwError,
 	timer
 } from 'rxjs';
-import { AppModule } from './app.module';
-import { ConfigurationModule } from './configuration/configuration.module';
-import { ConfigurationService } from './configuration/configuration.service';
-import { ExcelService } from './excel/excel.service';
-import { FileSystemService } from './file-system/file-system.service';
-import { OutputService } from './output/output.service';
-import { TRANSPORT } from './sharepoint-auth/sharepoint-auth.constants';
-import { SharePointAuthModule } from './sharepoint-auth/sharepoint-auth.module';
-import { SharePointService } from './sharepoint/sharepoint.service';
-import { clamp } from './utils';
+import { AppModule } from './app.module.js';
+import { ConfigurationModule } from './configuration/configuration.module.js';
+import { ConfigurationService } from './configuration/configuration.service.js';
+import { ExcelService } from './excel/excel.service.js';
+import { FileSystemService } from './file-system/file-system.service.js';
+import { OutputService } from './output/output.service.js';
+import { TRANSPORT } from './sharepoint-auth/sharepoint-auth.constants.js';
+import { SharePointAuthModule } from './sharepoint-auth/sharepoint-auth.module.js';
+import { SharePointService } from './sharepoint/sharepoint.service.js';
+import { clamp } from './utils.js';
 
 enum FileType {
-	SharePoint,
-	FileSystem
+  SharePoint,
+  FileSystem
 }
 
 async function bootstrap() {
-	const configurationApp = await NestFactory.createApplicationContext(ConfigurationModule);
-	const configurationService = configurationApp.get(ConfigurationService);
-
-	if (!!configurationService.sharePointAuthService) {
-		const sharePointAuthMicroservice = await NestFactory.createMicroservice<MicroserviceOptions>(
-			SharePointAuthModule,
-			{ transport: TRANSPORT }
-		);
-		await sharePointAuthMicroservice.listen();
-	} else {
-		const app = await NestFactory.createApplicationContext(AppModule);
-
-		const sharePointService = app.get(SharePointService);
-		const fileSystemService = app.get(FileSystemService);
-		const excelService = app.get(ExcelService);
-		const outputService = app.get(OutputService);
-		const cache = createCache({ ttl: 0 });
-
-		const logger = new Logger(`main`);
-
-		const nonAlphaNumericRegExp = /[^A-Z0-9]/gi;
-		const nonAlphaNumericStartRegExp = /^[^A-Z0-9]+/gi;
-		const nonAlphaNumericStartOnlyBeforeLettersRegExp = /^[^A-Z0-9]+(?=[A-Z])/gi;
-		const nonAlphaNumericEndRegExp = /[^A-Z0-9]+$/gi;
-		const numericStartRegExp = /^\d.*$/;
-
-		const retryConfig: RetryConfig = {
-			count: configurationService.retries,
-			delay: configurationService.retryDelay,
-			resetOnSuccess: true
-		};
-
-		const fileName = configurationService.filename;
-		const fileNameWithoutStars = fileName?.replace(/(?:\*+)|(?:\*+$)/g, ``);
-		const startsWithStar = fileName?.startsWith('*') ?? false;
-		const endsWithStar = fileName?.endsWith('*') ?? false;
-
-		const substringFunctionName = `substringof`;
-		const startsWithFunctionName = `startswith`;
-
-		const nameColumn = `Name`;
-
-		const nameFilter = !fileName
-			? undefined
-			: startsWithStar
-				? `${substringFunctionName}('${fileNameWithoutStars}',${nameColumn})`
-				: !startsWithStar && !endsWithStar
-					? `${nameColumn} eq '${fileNameWithoutStars}'`
-					: `${startsWithFunctionName}(${nameColumn},'${fileNameWithoutStars}')`;
-
-		const bigQueryDateTimeFormat = `YYYY-MM-DD HH:mm:ss`;
-
-		let persistentErrorCount = 0;
-
-		while (true) {
-			logger.log(`Starting extraction`);
-
-			const extractionTime = moment().utc().format(bigQueryDateTimeFormat);
-
-			const getMostRecentlyEditedFileOnly = !configurationService.multipleFiles;
-
-			try {
-				await lastValueFrom(
-					(!!configurationService.filePath
-						? fileSystemService
-								.getFileInfo(configurationService.filePath, getMostRecentlyEditedFileOnly)
-								.pipe(
-									map(({ entry, index, count }) => ({
-										etag: entry?.stats?.mtime?.toISOString(),
-										uri: entry?.path,
-										type: FileType.FileSystem,
-										index,
-										count
-									}))
-								)
-						: (!!configurationService.sharePointFolder
-								? sharePointService.getFilesDataFromFolder(
-										configurationService.sharePointFolder,
-										getMostRecentlyEditedFileOnly,
-										nameFilter
-									)
-								: !!configurationService.fileURL
-									? sharePointService.getFileByURL(configurationService.fileURL)
-									: EMPTY
-							).pipe(
-								map(({ fileData, index, count }) => {
-									return {
-										etag: fileData?.ETag ?? fileData?.__metadata?.etag,
-										uri: fileData?.__metadata?.id ?? fileData?.__metadata?.media_src,
-										type: FileType.SharePoint,
-										index,
-										count
-									};
-								})
-							)
-					).pipe(
-						retry(retryConfig),
-						mergeMap(async fileData => {
-							const fileDataCountAsString = `${fileData.count}`;
-							const fileDataNumberAsString = `${fileData.index + 1}`.padStart(
-								fileDataCountAsString.length,
-								` `
-							);
-
-							const sequenceIdentifier = `${fileDataNumberAsString}/${fileDataCountAsString}`;
-
-							if (!fileData.uri) {
-								logger.warn(`${sequenceIdentifier} No file(s) found`);
-
-								return EMPTY;
-							}
-
-							const decodedURI =
-								fileData.type == FileType.SharePoint ? decodeURI(fileData.uri) : fileData.uri;
-
-							let currentlyExtractedFileName = last(decodedURI.split(/(?:\\|\/)/))!;
-							if (currentlyExtractedFileName.endsWith(`')`))
-								currentlyExtractedFileName = currentlyExtractedFileName.slice(
-									0,
-									currentlyExtractedFileName.length - 2
-								);
-
-							const cachedETag = (await cache.get<string>(fileData.uri)) ?? null;
-
-							if (cachedETag == fileData.etag) {
-								logger.log(`${sequenceIdentifier} No changes in ${currentlyExtractedFileName}`);
-
-								return EMPTY;
-							}
-
-							const sheetNumberOrName =
-								typeof configurationService.sheet == `number`
-									? `index ${configurationService.sheet}`
-									: `'${configurationService.sheet}'`;
-
-							return (
-								fileData.type == FileType.SharePoint
-									? sharePointService.getFileContent(
-											new URL(`${fileData.uri}${!!configurationService.sps2010 ? '' : '//$value'}`)
-										)
-									: fileSystemService.getFileContent(fileData.uri)
-							).pipe(
-								tap(() =>
-									logger.log(
-										`${sequenceIdentifier} Extracting sheet ${sheetNumberOrName} from '${currentlyExtractedFileName}'`
-									)
-								),
-								mergeMap(excelFile => {
-									const worksheet = excelService.getSheet(excelFile, configurationService.sheet, {
-										cellFormula: false,
-										cellHTML: false,
-										cellDates: true,
-										cellText: false,
-										raw: true
-									});
-
-									const headerRow = configurationService.headerRow;
-
-									const usedRange = excelService.getUsedRange(worksheet);
-
-									if (!usedRange) return EMPTY;
-
-									const maxColumn = usedRange.maxColumn;
-
-									const header =
-										headerRow == 0
-											? toArray(
-													range(usedRange.minColumn, maxColumn).pipe(
-														mapIx(excelService.columnNumberToName)
-													)
-												)
-											: toArray(
-													from(
-														Array.from({
-															...excelService
-																.getSheetData<string | null>(worksheet, {
-																	header: 1,
-																	range: `${usedRange.minColumnName}${headerRow}:${usedRange.maxColumnName}${headerRow}`,
-																	defval: null
-																})
-																.flat(1),
-
-															length: maxColumn
-														})
-													).pipe(
-														mapIx((columnName, index) => {
-															let trimmedColumnName = `${columnName ?? ``}`.trim();
-
-															if (trimmedColumnName.replace(nonAlphaNumericRegExp, ``).length == 0)
-																trimmedColumnName = ``;
-
-															if (numericStartRegExp.test(trimmedColumnName))
-																trimmedColumnName = `_` + trimmedColumnName;
-
-															trimmedColumnName = trimmedColumnName
-																.replaceAll(nonAlphaNumericRegExp, `_`)
-																.replaceAll(nonAlphaNumericStartRegExp, `_`)
-																.replaceAll(nonAlphaNumericStartOnlyBeforeLettersRegExp, ``)
-																.replaceAll(nonAlphaNumericEndRegExp, ``);
-
-															return trimmedColumnName.length > 0
-																? trimmedColumnName
-																: `BLANK_${excelService.columnNumberToName(index + 1)}`;
-														})
-													)
-												);
-
-									const uniqueFieldNames = new Set();
-
-									for (let index = 0, count = header.length; index < count; ++index) {
-										let fieldNameSuffix = 0;
-
-										while (true) {
-											const newFieldName = `${header[index]}${fieldNameSuffix == 0 ? '' : `_${fieldNameSuffix}`}`;
-
-											if (uniqueFieldNames.has(newFieldName.toUpperCase())) {
-												++fieldNameSuffix;
-												continue;
-											}
-
-											header[index] = newFieldName;
-											uniqueFieldNames.add(newFieldName.toUpperCase());
-											break;
-										}
-									}
-
-									const dataRowNumber = configurationService.dataRow;
-
-									const dataRows = excelService.getSheetData<Record<string, any>>(worksheet, {
-										header,
-										range: `${usedRange.minColumnName}${
-											!!dataRowNumber ? dataRowNumber : headerRow + 1
-										}:${usedRange.maxColumnName}${usedRange.maxRow}`,
-										...(configurationService.includeBlankColumns ? { defval: null } : {})
-									});
-
-									return of(dataRows);
-								}),
-								retry(retryConfig),
-								catchError(err => {
-									if (configurationService.multipleFiles) {
-										logger.warn(`${sequenceIdentifier} Extraction failed:\n${err}`);
-
-										return EMPTY;
-									} else return throwError(() => err);
-								}),
-								tap(() => {
-									logger.log(`${sequenceIdentifier} Data extracted`);
-								}),
-
-								map(dataRows => {
-									const extractionTimeFieldName = `ExtractionTime`;
-
-									const stringType = `STRING`;
-									const integerType = `INTEGER`;
-									const floatType = `FLOAT`;
-									const timestampType = `TIMESTAMP`;
-
-									const fieldTypes = new Map<
-										string,
-										Record<
-											| typeof timestampType
-											| typeof stringType
-											| typeof integerType
-											| typeof floatType,
-											boolean
-										>
-									>([
-										[
-											extractionTimeFieldName,
-											{ TIMESTAMP: true, STRING: false, INTEGER: false, FLOAT: false }
-										]
-									]);
-
-									let dataRowsIterable = from(dataRows).pipe(
-										mapIx(dataRow =>
-											Object.fromEntries(
-												Object.entries(dataRow).map(([key, value]) => {
-													let fieldType = fieldTypes.get(key);
-
-													if (!fieldType) {
-														fieldType = {
-															TIMESTAMP: false,
-															STRING: false,
-															INTEGER: false,
-															FLOAT: false
-														};
-														fieldTypes.set(key, fieldType);
-													}
-
-													let newValue = value;
-
-													if (value instanceof Date) {
-														newValue = moment(value)
-															.add(1, `millisecond`) // Fixes time being displayed 1s less than what is in source Excel file
-															.format(bigQueryDateTimeFormat);
-
-														fieldType.TIMESTAMP = true;
-													} else if (typeof newValue == 'string') {
-														if (newValue.trim().length == 0) newValue = null;
-
-														if (!!newValue) fieldType.STRING = true;
-													} else if (typeof newValue == `number`) {
-														const isInteger = Number.isInteger(newValue);
-
-														if (!isInteger) fieldType.FLOAT = true;
-														if (isInteger) fieldType.INTEGER = true;
-													}
-
-													return [key, newValue];
-												})
-											)
-										),
-										mapIx(dataRow => ({ ...dataRow, [extractionTimeFieldName]: extractionTime }))
-									);
-
-									dataRowsIterable = from(toArray(dataRowsIterable));
-
-									const schema: TableSchema = {
-										fields: toArray(
-											from(fieldTypes.entries()).pipe(
-												mapIx(([name, type]) => ({
-													mode: `NULLABLE`,
-													name,
-													type: type.STRING
-														? stringType
-														: type.TIMESTAMP && (type.FLOAT || type.INTEGER)
-															? stringType
-															: type.TIMESTAMP
-																? timestampType
-																: type.FLOAT
-																	? floatType
-																	: type.INTEGER
-																		? integerType
-																		: stringType
-												}))
-											)
-										)
-									};
-
-									return {
-										dataRows: dataRowsIterable,
-										schema
-									};
-								}),
-
-								mergeMap(({ dataRows, schema }) => {
-									const matches = configurationService.bqtableNameRegExp?.exec(
-										currentlyExtractedFileName
-									);
-									const bqTableNameFromRegExp =
-										!!matches && matches.length > 1 ? matches[1] : matches?.[0];
-
-									const bigQueryTableName = !!configurationService.bigQueryTable
-										? configurationService.bigQueryTable
-										: (bqTableNameFromRegExp ?? parse(currentlyExtractedFileName).name).replaceAll(
-												nonAlphaNumericRegExp,
-												`_`
-											);
-
-									logger.log(
-										`${sequenceIdentifier} Writing data to BigQuery (${configurationService.bigQueryProject}.${configurationService.bigQueryDataset}.${bigQueryTableName})`
-									);
-
-									return outputService.outputToBigQuery(dataRows, bigQueryTableName, schema).pipe(
-										retry(retryConfig),
-										tap(() => {
-											logger.log(`${sequenceIdentifier} Data written to BigQuery`);
-
-											cache.set(fileData.uri, fileData.etag);
-										})
-									);
-								})
-							);
-						}),
-						concatAll()
-					),
-					{ defaultValue: null }
-				);
-			} catch (error: any) {
-				logger.error(error, error.stack);
-
-				const cooldown =
-					clamp(
-						// Exponential backoff
-						configurationService.persistentErrorCooldown * Math.pow(2, persistentErrorCount++),
-						configurationService.persistentErrorCooldown,
-						configurationService.persistentErrorCooldownMax
-					) +
-					// Random jitter
-					Math.random() * 60 /*s*/ * 1000; /*ms*/
-
-				// Persistent error cooldown
-				logger.log(
-					`Persistent error occured. Will retry in ${moment.duration(cooldown).humanize()}.`
-				);
-
-				await firstValueFrom(timer(cooldown));
-
-				continue;
-			}
-
-			persistentErrorCount = 0;
-
-			const cron = configurationService.cron;
-
-			if (!cron) break;
-
-			const now = moment();
-
-			cron.reset(now.toDate());
-
-			const nextExtractionStart = moment(cron.next().toDate());
-			const msToStartAnotherExtraction =
-				Math.max(nextExtractionStart.diff(now), 0) + Math.random() * 60 /*s*/ * 1000; /*ms*/
-
-			logger.log(
-				`Next extraction will start in ${moment
-					.duration(msToStartAnotherExtraction)
-					.humanize()} ${nextExtractionStart.calendar({
-					sameDay: `[today at] HH:mm`,
-					nextDay: `[tomorrow at] HH:mm`,
-					nextWeek: `[on] dddd [at] HH:mm`
-				})}`
-			);
-
-			await firstValueFrom(timer(msToStartAnotherExtraction));
-		}
-	}
+  const configurationApp =
+    await NestFactory.createApplicationContext(ConfigurationModule);
+  const configurationService = configurationApp.get(ConfigurationService);
+
+  if (!!configurationService.sharePointAuthService) {
+    const sharePointAuthMicroservice =
+      await NestFactory.createMicroservice<MicroserviceOptions>(
+        SharePointAuthModule,
+        { transport: TRANSPORT }
+      );
+    await sharePointAuthMicroservice.listen();
+  } else {
+    const app = await NestFactory.createApplicationContext(AppModule);
+
+    const sharePointService = app.get(SharePointService);
+    const fileSystemService = app.get(FileSystemService);
+    const excelService = app.get(ExcelService);
+    const outputService = app.get(OutputService);
+    const cache = createCache({ ttl: 0 });
+
+    const logger = new Logger(`main`);
+
+    const nonAlphaNumericRegExp = /[^A-Z0-9]/gi;
+    const nonAlphaNumericStartRegExp = /^[^A-Z0-9]+/gi;
+    const nonAlphaNumericStartOnlyBeforeLettersRegExp =
+      /^[^A-Z0-9]+(?=[A-Z])/gi;
+    const nonAlphaNumericEndRegExp = /[^A-Z0-9]+$/gi;
+    const numericStartRegExp = /^\d.*$/;
+
+    const retryConfig: RetryConfig = {
+      count: configurationService.retries,
+      delay: configurationService.retryDelay,
+      resetOnSuccess: true
+    };
+
+    const fileName = configurationService.filename;
+    const fileNameWithoutStars = fileName?.replace(/(?:\*+)|(?:\*+$)/g, ``);
+    const startsWithStar = fileName?.startsWith('*') ?? false;
+    const endsWithStar = fileName?.endsWith('*') ?? false;
+
+    const substringFunctionName = `substringof`;
+    const startsWithFunctionName = `startswith`;
+
+    const nameColumn = `Name`;
+
+    const nameFilter = !fileName
+      ? undefined
+      : startsWithStar
+        ? `${substringFunctionName}('${fileNameWithoutStars}',${nameColumn})`
+        : !startsWithStar && !endsWithStar
+          ? `${nameColumn} eq '${fileNameWithoutStars}'`
+          : `${startsWithFunctionName}(${nameColumn},'${fileNameWithoutStars}')`;
+
+    const bigQueryDateTimeFormat = `YYYY-MM-DD HH:mm:ss`;
+
+    let persistentErrorCount = 0;
+
+    while (true) {
+      logger.log(`Starting extraction`);
+
+      const extractionTime = moment().utc().format(bigQueryDateTimeFormat);
+
+      const getMostRecentlyEditedFileOnly = !configurationService.multipleFiles;
+
+      try {
+        await lastValueFrom(
+          (!!configurationService.filePath
+            ? fileSystemService
+                .getFileInfo(
+                  configurationService.filePath,
+                  getMostRecentlyEditedFileOnly
+                )
+                .pipe(
+                  map(({ entry, index, count }) => ({
+                    etag: entry?.stats?.mtime?.toISOString(),
+                    uri: entry?.path,
+                    type: FileType.FileSystem,
+                    index,
+                    count
+                  }))
+                )
+            : (!!configurationService.sharePointFolder
+                ? sharePointService.getFilesDataFromFolder(
+                    configurationService.sharePointFolder,
+                    getMostRecentlyEditedFileOnly,
+                    nameFilter
+                  )
+                : !!configurationService.fileURL
+                  ? sharePointService.getFileByURL(configurationService.fileURL)
+                  : EMPTY
+              ).pipe(
+                map(({ fileData, index, count }) => {
+                  return {
+                    etag: fileData?.ETag ?? fileData?.__metadata?.etag,
+                    uri:
+                      fileData?.__metadata?.id ??
+                      fileData?.__metadata?.media_src,
+                    type: FileType.SharePoint,
+                    index,
+                    count
+                  };
+                })
+              )
+          ).pipe(
+            retry(retryConfig),
+            mergeMap(async (fileData) => {
+              const fileDataCountAsString = `${fileData.count}`;
+              const fileDataNumberAsString = `${fileData.index + 1}`.padStart(
+                fileDataCountAsString.length,
+                ` `
+              );
+
+              const sequenceIdentifier = `${fileDataNumberAsString}/${fileDataCountAsString}`;
+
+              if (!fileData.uri) {
+                logger.warn(`${sequenceIdentifier} No file(s) found`);
+
+                return EMPTY;
+              }
+
+              const decodedURI =
+                fileData.type == FileType.SharePoint
+                  ? decodeURI(fileData.uri)
+                  : fileData.uri;
+
+              let currentlyExtractedFileName = last(
+                decodedURI.split(/(?:\\|\/)/)
+              )!;
+              if (currentlyExtractedFileName.endsWith(`')`))
+                currentlyExtractedFileName = currentlyExtractedFileName.slice(
+                  0,
+                  currentlyExtractedFileName.length - 2
+                );
+
+              const cachedETag =
+                (await cache.get<string>(fileData.uri)) ?? null;
+
+              if (cachedETag == fileData.etag) {
+                logger.log(
+                  `${sequenceIdentifier} No changes in ${currentlyExtractedFileName}`
+                );
+
+                return EMPTY;
+              }
+
+              const sheetNumberOrName =
+                typeof configurationService.sheet == `number`
+                  ? `index ${configurationService.sheet}`
+                  : `'${configurationService.sheet}'`;
+
+              return (
+                fileData.type == FileType.SharePoint
+                  ? sharePointService.getFileContent(
+                      new URL(
+                        `${fileData.uri}${!!configurationService.sps2010 ? '' : '//$value'}`
+                      )
+                    )
+                  : fileSystemService.getFileContent(fileData.uri)
+              ).pipe(
+                tap(() =>
+                  logger.log(
+                    `${sequenceIdentifier} Extracting sheet ${sheetNumberOrName} from '${currentlyExtractedFileName}'`
+                  )
+                ),
+                mergeMap((excelFile) => {
+                  const worksheet = excelService.getSheet(
+                    excelFile,
+                    configurationService.sheet,
+                    {
+                      cellFormula: false,
+                      cellHTML: false,
+                      cellDates: true,
+                      cellText: false,
+                      raw: true
+                    }
+                  );
+
+                  const headerRow = configurationService.headerRow;
+
+                  const usedRange = excelService.getUsedRange(worksheet);
+
+                  if (!usedRange) return EMPTY;
+
+                  const maxColumn = usedRange.maxColumn;
+
+                  const header =
+                    headerRow == 0
+                      ? toArray(
+                          range(usedRange.minColumn, maxColumn).pipe(
+                            mapIx(excelService.columnNumberToName)
+                          )
+                        )
+                      : toArray(
+                          from(
+                            Array.from({
+                              ...excelService
+                                .getSheetData<string | null>(worksheet, {
+                                  header: 1,
+                                  range: `${usedRange.minColumnName}${headerRow}:${usedRange.maxColumnName}${headerRow}`,
+                                  defval: null
+                                })
+                                .flat(1),
+
+                              length: maxColumn
+                            })
+                          ).pipe(
+                            mapIx((columnName, index) => {
+                              let trimmedColumnName =
+                                `${columnName ?? ``}`.trim();
+
+                              if (
+                                trimmedColumnName.replace(
+                                  nonAlphaNumericRegExp,
+                                  ``
+                                ).length == 0
+                              )
+                                trimmedColumnName = ``;
+
+                              if (numericStartRegExp.test(trimmedColumnName))
+                                trimmedColumnName = `_` + trimmedColumnName;
+
+                              trimmedColumnName = trimmedColumnName
+                                .replaceAll(nonAlphaNumericRegExp, `_`)
+                                .replaceAll(nonAlphaNumericStartRegExp, `_`)
+                                .replaceAll(
+                                  nonAlphaNumericStartOnlyBeforeLettersRegExp,
+                                  ``
+                                )
+                                .replaceAll(nonAlphaNumericEndRegExp, ``);
+
+                              return trimmedColumnName.length > 0
+                                ? trimmedColumnName
+                                : `BLANK_${excelService.columnNumberToName(index + 1)}`;
+                            })
+                          )
+                        );
+
+                  const uniqueFieldNames = new Set();
+
+                  for (
+                    let index = 0, count = header.length;
+                    index < count;
+                    ++index
+                  ) {
+                    let fieldNameSuffix = 0;
+
+                    while (true) {
+                      const newFieldName = `${header[index]}${fieldNameSuffix == 0 ? '' : `_${fieldNameSuffix}`}`;
+
+                      if (uniqueFieldNames.has(newFieldName.toUpperCase())) {
+                        ++fieldNameSuffix;
+                        continue;
+                      }
+
+                      header[index] = newFieldName;
+                      uniqueFieldNames.add(newFieldName.toUpperCase());
+                      break;
+                    }
+                  }
+
+                  const dataRowNumber = configurationService.dataRow;
+
+                  const dataRows = excelService.getSheetData<
+                    Record<string, any>
+                  >(worksheet, {
+                    header,
+                    range: `${usedRange.minColumnName}${
+                      !!dataRowNumber ? dataRowNumber : headerRow + 1
+                    }:${usedRange.maxColumnName}${usedRange.maxRow}`,
+                    ...(configurationService.includeBlankColumns
+                      ? { defval: null }
+                      : {})
+                  });
+
+                  return of(dataRows);
+                }),
+                retry(retryConfig),
+                catchError((err) => {
+                  if (configurationService.multipleFiles) {
+                    logger.warn(
+                      `${sequenceIdentifier} Extraction failed:\n${err}`
+                    );
+
+                    return EMPTY;
+                  } else return throwError(() => err);
+                }),
+                tap(() => {
+                  logger.log(`${sequenceIdentifier} Data extracted`);
+                }),
+
+                map((dataRows) => {
+                  const extractionTimeFieldName = `ExtractionTime`;
+
+                  const stringType = `STRING`;
+                  const integerType = `INTEGER`;
+                  const floatType = `FLOAT`;
+                  const timestampType = `TIMESTAMP`;
+
+                  const fieldTypes = new Map<
+                    string,
+                    Record<
+                      | typeof timestampType
+                      | typeof stringType
+                      | typeof integerType
+                      | typeof floatType,
+                      boolean
+                    >
+                  >([
+                    [
+                      extractionTimeFieldName,
+                      {
+                        TIMESTAMP: true,
+                        STRING: false,
+                        INTEGER: false,
+                        FLOAT: false
+                      }
+                    ]
+                  ]);
+
+                  let dataRowsIterable = from(dataRows).pipe(
+                    mapIx((dataRow) =>
+                      Object.fromEntries(
+                        Object.entries(dataRow).map(([key, value]) => {
+                          let fieldType = fieldTypes.get(key);
+
+                          if (!fieldType) {
+                            fieldType = {
+                              TIMESTAMP: false,
+                              STRING: false,
+                              INTEGER: false,
+                              FLOAT: false
+                            };
+                            fieldTypes.set(key, fieldType);
+                          }
+
+                          let newValue = value;
+
+                          if (value instanceof Date) {
+                            newValue = moment(value)
+                              .add(1, `millisecond`) // Fixes time being displayed 1s less than what is in source Excel file
+                              .format(bigQueryDateTimeFormat);
+
+                            fieldType.TIMESTAMP = true;
+                          } else if (typeof newValue == 'string') {
+                            if (newValue.trim().length == 0) newValue = null;
+
+                            if (!!newValue) fieldType.STRING = true;
+                          } else if (typeof newValue == `number`) {
+                            const isInteger = Number.isInteger(newValue);
+
+                            if (!isInteger) fieldType.FLOAT = true;
+                            if (isInteger) fieldType.INTEGER = true;
+                          }
+
+                          return [key, newValue];
+                        })
+                      )
+                    ),
+                    mapIx((dataRow) => ({
+                      ...dataRow,
+                      [extractionTimeFieldName]: extractionTime
+                    }))
+                  );
+
+                  dataRowsIterable = from(toArray(dataRowsIterable));
+
+                  const schema: TableSchema = {
+                    fields: toArray(
+                      from(fieldTypes.entries()).pipe(
+                        mapIx(([name, type]) => ({
+                          mode: `NULLABLE`,
+                          name,
+                          type: type.STRING
+                            ? stringType
+                            : type.TIMESTAMP && (type.FLOAT || type.INTEGER)
+                              ? stringType
+                              : type.TIMESTAMP
+                                ? timestampType
+                                : type.FLOAT
+                                  ? floatType
+                                  : type.INTEGER
+                                    ? integerType
+                                    : stringType
+                        }))
+                      )
+                    )
+                  };
+
+                  return {
+                    dataRows: dataRowsIterable,
+                    schema
+                  };
+                }),
+
+                mergeMap(({ dataRows, schema }) => {
+                  const matches = configurationService.bqtableNameRegExp?.exec(
+                    currentlyExtractedFileName
+                  );
+                  const bqTableNameFromRegExp =
+                    !!matches && matches.length > 1 ? matches[1] : matches?.[0];
+
+                  const bigQueryTableName = !!configurationService.bigQueryTable
+                    ? configurationService.bigQueryTable
+                    : (
+                        bqTableNameFromRegExp ??
+                        parse(currentlyExtractedFileName).name
+                      ).replaceAll(nonAlphaNumericRegExp, `_`);
+
+                  logger.log(
+                    `${sequenceIdentifier} Writing data to BigQuery (${configurationService.bigQueryProject}.${configurationService.bigQueryDataset}.${bigQueryTableName})`
+                  );
+
+                  return outputService
+                    .outputToBigQuery(dataRows, bigQueryTableName, schema)
+                    .pipe(
+                      retry(retryConfig),
+                      tap(() => {
+                        logger.log(
+                          `${sequenceIdentifier} Data written to BigQuery`
+                        );
+
+                        cache.set(fileData.uri, fileData.etag);
+                      })
+                    );
+                })
+              );
+            }),
+            concatAll()
+          ),
+          { defaultValue: null }
+        );
+      } catch (error: any) {
+        logger.error(error, error.stack);
+
+        const cooldown =
+          clamp(
+            // Exponential backoff
+            configurationService.persistentErrorCooldown *
+              Math.pow(2, persistentErrorCount++),
+            configurationService.persistentErrorCooldown,
+            configurationService.persistentErrorCooldownMax
+          ) +
+          // Random jitter
+          Math.random() * 60 /*s*/ * 1000; /*ms*/
+
+        // Persistent error cooldown
+        logger.log(
+          `Persistent error occured. Will retry in ${moment.duration(cooldown).humanize()}.`
+        );
+
+        await firstValueFrom(timer(cooldown));
+
+        continue;
+      }
+
+      persistentErrorCount = 0;
+
+      const cron = configurationService.cron;
+
+      if (!cron) break;
+
+      const now = moment();
+
+      cron.reset(now.toDate());
+
+      const nextExtractionStart = moment(cron.next().toDate());
+      const msToStartAnotherExtraction =
+        Math.max(nextExtractionStart.diff(now), 0) +
+        Math.random() * 60 /*s*/ * 1000; /*ms*/
+
+      logger.log(
+        `Next extraction will start in ${moment
+          .duration(msToStartAnotherExtraction)
+          .humanize()} ${nextExtractionStart.calendar({
+          sameDay: `[today at] HH:mm`,
+          nextDay: `[tomorrow at] HH:mm`,
+          nextWeek: `[on] dddd [at] HH:mm`
+        })}`
+      );
+
+      await firstValueFrom(timer(msToStartAnotherExtraction));
+    }
+  }
 }
 
 bootstrap();

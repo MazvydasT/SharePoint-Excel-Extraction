@@ -1,6 +1,10 @@
 # compiled output
 /dist
 /node_modules
+/build
+
+# TypeScript build cache
+*.tsbuildinfo
 
 # Logs
 logs
@@ -34,8 +38,22 @@ lerna-debug.log*
 !.vscode/launch.json
 !.vscode/extensions.json
 
-# .env files
+# dotenv environment variable files
 *.env
+.env.development.local
+.env.test.local
+.env.production.local
+.env.local
 
-# config file
-*config.json*
+# temp directory
+.temp
+.tmp
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json

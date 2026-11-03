@@ -3,128 +3,150 @@ import { Inject, Injectable } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { ElementHandle } from 'puppeteer';
 import { from, mergeMap, of, timeout } from 'rxjs';
-import { ConfigurationService } from '../configuration/configuration.service';
-import { PuppeteerService } from '../puppeteer/puppeteer.service';
-import { IAuthHeaders } from './IAuthHeaders';
-import { GET_AUTH_COMMAND, SHAREPOINT_AUTH_MICROSERVICE } from './sharepoint-auth.constants';
+import { ConfigurationService } from '../configuration/configuration.service.js';
+import { PuppeteerService } from '../puppeteer/puppeteer.service.js';
+import { IAuthHeaders } from './IAuthHeaders.js';
+import {
+  GET_AUTH_COMMAND,
+  SHAREPOINT_AUTH_MICROSERVICE
+} from './sharepoint-auth.constants.js';
 
 @Injectable()
 export class SharePointAuthService {
-	constructor(
-		private configurationService: ConfigurationService,
-		private puppeteerService: PuppeteerService,
-		@Inject(CACHE_MANAGER) private cache: Cache,
-		@Inject(SHAREPOINT_AUTH_MICROSERVICE) private sharePointAuthMicroserviceClient: ClientProxy
-	) {}
+  constructor(
+    private configurationService: ConfigurationService,
+    private puppeteerService: PuppeteerService,
+    @Inject(CACHE_MANAGER) private cache: Cache,
+    @Inject(SHAREPOINT_AUTH_MICROSERVICE)
+    private sharePointAuthMicroserviceClient: ClientProxy
+  ) {}
 
-	getAuth(url: string, username: string, password: string) {
-		const { origin } = new URL(url);
+  getAuth(url: string, username: string, password: string) {
+    const { origin } = new URL(url);
 
-		return !!this.configurationService.doNotUseSharePointAuthService ||
-			!!this.configurationService.sharePointAuthService
-			? this.getAuthByBrowser(origin, username, password)
-			: this.getAuthFromSharePointAuthMicroservice(origin, username, password);
-	}
+    return !!this.configurationService.doNotUseSharePointAuthService ||
+      !!this.configurationService.sharePointAuthService
+      ? this.getAuthByBrowser(origin, username, password)
+      : this.getAuthFromSharePointAuthMicroservice(origin, username, password);
+  }
 
-	private inFlightExecutionsInBrowser = new Map<string, Promise<IAuthHeaders>>();
-	private getAuthByBrowser(url: string, username: string, password: string) {
-		const cacheKey = `${url}@${username}:${password}`;
-		const cacheTimeToLive = 5 /*m*/ * 60 /*s*/ * 1000; /*ms*/
+  private inFlightExecutionsInBrowser = new Map<
+    string,
+    Promise<IAuthHeaders>
+  >();
+  private getAuthByBrowser(url: string, username: string, password: string) {
+    const cacheKey = `${url}@${username}:${password}`;
+    const cacheTimeToLive = 5 /*m*/ * 60 /*s*/ * 1000; /*ms*/
 
-		return from(this.cache.get<IAuthHeaders>(cacheKey)).pipe(
-			mergeMap(authHeaders => {
-				if (!!authHeaders) return of(authHeaders);
-				else {
-					let inFlightExecutionInBrowser = this.inFlightExecutionsInBrowser.get(cacheKey);
+    return from(this.cache.get<IAuthHeaders>(cacheKey)).pipe(
+      mergeMap((authHeaders) => {
+        if (!!authHeaders) return of(authHeaders);
+        else {
+          let inFlightExecutionInBrowser =
+            this.inFlightExecutionsInBrowser.get(cacheKey);
 
-					if (!inFlightExecutionInBrowser) {
-						this.inFlightExecutionsInBrowser.set(
-							cacheKey,
-							(inFlightExecutionInBrowser = this.puppeteerService
-								.executeInBrowser(async browser => {
-									const page = await browser.newPage();
+          if (!inFlightExecutionInBrowser) {
+            this.inFlightExecutionsInBrowser.set(
+              cacheKey,
+              (inFlightExecutionInBrowser = this.puppeteerService
+                .executeInBrowser(async (browser) => {
+                  const page = await browser.newPage();
 
-									await page.goto(url);
+                  await page.goto(url);
 
-									const emailInput = page.locator(`input[name="loginfmt"]`);
-									const submitButton = page.locator(`input[type="submit"]`);
+                  const emailInput = page.locator(`input[name="loginfmt"]`);
+                  const submitButton = page.locator(`input[type="submit"]`);
 
-									await emailInput.fill(username);
+                  await emailInput.fill(username);
 
-									const abortController = new AbortController();
-									const abortSignal = abortController.signal;
+                  const abortController = new AbortController();
+                  const abortSignal = abortController.signal;
 
-									const abortableClickTarget = async (selector: string) => {
-										let targetElementHandle: ElementHandle<Element> | null = null;
+                  const abortableClickTarget = async (selector: string) => {
+                    let targetElementHandle: ElementHandle<Element> | null =
+                      null;
 
-										try {
-											targetElementHandle = await page.waitForSelector(selector, {
-												signal: abortSignal
-											});
+                    try {
+                      targetElementHandle = await page.waitForSelector(
+                        selector,
+                        {
+                          signal: abortSignal
+                        }
+                      );
 
-											await targetElementHandle?.click();
-										} catch (error) {
-											if (!abortSignal.aborted) throw error;
-										} finally {
-											await targetElementHandle?.dispose();
-										}
-									};
+                      await targetElementHandle?.click();
+                    } catch (error) {
+                      if (!abortSignal.aborted) throw error;
+                    } finally {
+                      await targetElementHandle?.dispose();
+                    }
+                  };
 
-									const [rsaTokenButton] = await Promise.all([
-										page
-											.waitForSelector(`[aria-label="Active Directory"]`)
-											.finally(() => abortController.abort()),
+                  const [rsaTokenButton] = await Promise.all([
+                    page
+                      .waitForSelector(`[aria-label="Active Directory"]`)
+                      .finally(() => abortController.abort()),
 
-										abortableClickTarget(`#idA_PWD_SwitchToCredPicker`),
-										abortableClickTarget(`::-p-text(Use my password)`),
-										abortableClickTarget(`::-p-text(Use your password instead)`),
+                    abortableClickTarget(`#idA_PWD_SwitchToCredPicker`),
+                    abortableClickTarget(`::-p-text(Use my password)`),
+                    abortableClickTarget(
+                      `::-p-text(Use your password instead)`
+                    ),
 
-										submitButton.click()
-									]);
+                    submitButton.click()
+                  ]);
 
-									await page.authenticate({ username, password });
+                  await page.authenticate({ username, password });
 
-									await Promise.all([
-										page.waitForResponse(response => response.url().startsWith(url)),
-										rsaTokenButton?.click()
-									]);
+                  await Promise.all([
+                    page.waitForResponse((response) =>
+                      response.url().startsWith(url)
+                    ),
+                    rsaTokenButton?.click()
+                  ]);
 
-									await rsaTokenButton?.dispose();
+                  await rsaTokenButton?.dispose();
 
-									const cookies = await browser.cookies();
+                  const cookies = await browser.cookies();
 
-									const authHeaders: IAuthHeaders = {
-										headers: {
-											Cookie: cookies
-												.filter(({ name }) => name == `rtFa` || name == `FedAuth`)
-												.map(({ name, value }) => `${name}=${value}`)
-												.join(`; `)
-										}
-									};
+                  const authHeaders: IAuthHeaders = {
+                    headers: {
+                      Cookie: cookies
+                        .filter(
+                          ({ name }) => name == `rtFa` || name == `FedAuth`
+                        )
+                        .map(({ name, value }) => `${name}=${value}`)
+                        .join(`; `)
+                    }
+                  };
 
-									await this.cache.set(cacheKey, authHeaders, cacheTimeToLive);
+                  await this.cache.set(cacheKey, authHeaders, cacheTimeToLive);
 
-									return authHeaders;
-								})
-								.finally(() => {
-									this.inFlightExecutionsInBrowser.delete(cacheKey);
-								}))
-						);
-					}
+                  return authHeaders;
+                })
+                .finally(() => {
+                  this.inFlightExecutionsInBrowser.delete(cacheKey);
+                }))
+            );
+          }
 
-					return inFlightExecutionInBrowser;
-				}
-			})
-		);
-	}
+          return inFlightExecutionInBrowser;
+        }
+      })
+    );
+  }
 
-	private getAuthFromSharePointAuthMicroservice(url: string, username: string, password: string) {
-		return this.sharePointAuthMicroserviceClient
-			.send<IAuthHeaders>(GET_AUTH_COMMAND, {
-				url,
-				username,
-				password
-			})
-			.pipe(timeout(60000));
-	}
+  private getAuthFromSharePointAuthMicroservice(
+    url: string,
+    username: string,
+    password: string
+  ) {
+    return this.sharePointAuthMicroserviceClient
+      .send<IAuthHeaders>(GET_AUTH_COMMAND, {
+        url,
+        username,
+        password
+      })
+      .pipe(timeout(60000));
+  }
 }

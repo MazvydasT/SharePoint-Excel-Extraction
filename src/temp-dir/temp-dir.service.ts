@@ -8,7 +8,7 @@ const TEMP_DIR_PATH = tmpdir();
 
 @Injectable()
 export class TempDirService {
-	getTempDir() {
-		return mkdtempDisposable(join(TEMP_DIR_PATH, randomUUID()));
-	}
+  getTempDir() {
+    return mkdtempDisposable(join(TEMP_DIR_PATH, randomUUID()));
+  }
 }

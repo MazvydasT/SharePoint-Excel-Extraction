@@ -2,22 +2,18 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Debug",
             "type": "node",
             "request": "launch",
-            "name": "Debug Nest Framework",
-            "args": [
-                "${workspaceFolder}/src/main.ts"
-            ],
+            "runtimeExecutable": "npm",
             "runtimeArgs": [
-                "--nolazy",
-                "-r",
-                "ts-node/register",
-                "-r",
-                "tsconfig-paths/register"
+                "run",
+                "start:debug"
             ],
-            "sourceMaps": true,
-            //"envFile": "${workspaceFolder}/.env",
-            "cwd": "${workspaceRoot}",
+            "autoAttachChildProcesses": true,
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
             "console": "integratedTerminal"
         }
     ]

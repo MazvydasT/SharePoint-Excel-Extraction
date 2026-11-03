@@ -13,12 +13,14 @@
     "target": "es2025",
     "sourceMap": true,
     "outDir": "./dist",
-    "incremental": false,
+    "rootDir": ".",
+    "incremental": true,
     "skipLibCheck": true,
-    "strictNullChecks": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "types": [
+      "vitest/globals",
+      "node"
+    ]
   }
 }

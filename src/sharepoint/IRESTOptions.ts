@@ -1,11 +1,11 @@
-import { Order } from './sharepoint.service';
+import { Order } from './sharepoint.service.js';
 
 export interface IRESTOptions {
-	filter?: string;
-	select?: string[];
-	orderby?: {
-		field: string;
-		order?: Order;
-	}[];
-	top?: number;
+  filter?: string;
+  select?: string[];
+  orderby?: {
+    field: string;
+    order?: Order;
+  }[];
+  top?: number;
 }

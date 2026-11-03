@@ -1,9 +1,4 @@
 {
-	"singleQuote": true,
-	"trailingComma": "none",
-	"parser": "typescript",
-	"bracketSpacing": true,
-	"arrowParens": "avoid",
-	"printWidth": 100,
-	"endOfLine": "crlf"
+  "singleQuote": true,
+  "trailingComma": "none"
 }
