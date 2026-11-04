@@ -1,5 +1,5 @@
 import { TableSchema } from '@google-cloud/bigquery';
-import { Logger } from '@nestjs/common';
+import { ConsoleLogger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions } from '@nestjs/microservices';
 import { createCache } from 'cache-manager';
@@ -8,19 +8,19 @@ import { map as mapIx } from 'ix/iterable/operators';
 import moment from 'moment';
 import { parse } from 'path';
 import {
-	EMPTY,
-	RetryConfig,
-	catchError,
-	concatAll,
-	firstValueFrom,
-	lastValueFrom,
-	map,
-	mergeMap,
-	of,
-	retry,
-	tap,
-	throwError,
-	timer
+  EMPTY,
+  RetryConfig,
+  catchError,
+  concatAll,
+  firstValueFrom,
+  lastValueFrom,
+  map,
+  mergeMap,
+  of,
+  retry,
+  tap,
+  throwError,
+  timer
 } from 'rxjs';
 import { AppModule } from './app.module.js';
 import { ConfigurationModule } from './configuration/configuration.module.js';
@@ -59,7 +59,7 @@ async function bootstrap() {
     const outputService = app.get(OutputService);
     const cache = createCache({ ttl: 0 });
 
-    const logger = new Logger(`main`);
+    const logger = new ConsoleLogger(`main`, { structuredParams: false });
 
     const nonAlphaNumericRegExp = /[^A-Z0-9]/gi;
     const nonAlphaNumericStartRegExp = /^[^A-Z0-9]+/gi;
